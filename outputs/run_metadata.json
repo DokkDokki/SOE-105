@@ -1,0 +1,279 @@
+{
+  "run_at": "2026-08-04T19:08:38",
+  "runtime_seconds": 121.4,
+  "fiscal_start_month": 4,
+  "fiscal_year_label": "Apr-Mar",
+  "fiscal_detection_confidence": "high",
+  "fiscal_detection_evidence": [
+    "The data begins exactly on 01 April 2021, the first day of a month.",
+    "The data ends exactly on 31 March 2025, the last day of a month, so the next fiscal year would start in Apr.",
+    "The extract covers exactly 48 months (4 complete years), consistent with whole fiscal years rather than an arbitrary window.",
+    "The busiest month of the fiscal year is month 12 (Mar) at 10.9% of annual volume versus 8.3% if demand were flat - the fiscal year-end push."
+  ],
+  "fiscal_detection_matches_config": true,
+  "history_first_month": "2021-04",
+  "history_last_month": "2025-03",
+  "history_months": 48,
+  "history_fiscal_years": [
+    2021,
+    2022,
+    2023,
+    2024
+  ],
+  "forecast_fiscal_year": 2025,
+  "forecast_label": "FY2025 (Apr 2025 - Mar 2026)",
+  "forecast_months": [
+    "2025-04",
+    "2025-05",
+    "2025-06",
+    "2025-07",
+    "2025-08",
+    "2025-09",
+    "2025-10",
+    "2025-11",
+    "2025-12",
+    "2026-01",
+    "2026-02",
+    "2026-03"
+  ],
+  "rows_in": 272000,
+  "rows_out": 271948,
+  "n_products": 5706,
+  "n_customers": 2159,
+  "n_products_forecast_nonzero": 3217,
+  "total_forecast_quantity": 180978.0,
+  "total_forecast_revenue": 2045415028.0,
+  "n_price_tbd": 5,
+  "n_price_variable": 1075,
+  "realised_to_list_ratio": 0.8846936468460321,
+  "ratio_source": "computed from this dataset",
+  "default_billing_rate": 0.8540375928401035,
+  "revenue_method_check": {
+    "test_fiscal_year": 2024,
+    "actual_invoiced_revenue": 2024835276.24,
+    "revenue_from_actual_qty_and_our_prices": 2071471937.7175603,
+    "error": 46636661.47756028,
+    "error_pct": 2.3032323678280546
+  },
+  "vip_discount_question": {
+    "applied": false,
+    "vip_discount": 0.0,
+    "vip_customers": 10,
+    "vip_share_of_quantity": 0.6272477597126116,
+    "average_price_multiplier": 1.0
+  },
+  "revenue_if_vip_discount_37pct": 1584275815.4273329,
+  "intervals": {
+    "overall_low_multiplier": 0.28571428571428575,
+    "overall_median_multiplier": 1.0,
+    "overall_high_multiplier": 2.5863830613830605,
+    "quantiles": [
+      0.1,
+      0.9
+    ],
+    "portfolio_ratio_by_fold": {
+      "Fold 1": 0.6621504760375774,
+      "Fold 2": 1.2118204310838274
+    },
+    "portfolio_low_multiplier": 0.6621504760375774,
+    "portfolio_high_multiplier": 1.2118204310838274,
+    "portfolio_basis": "The company-wide range comes from how the TOTAL actually landed in each hidden back-test year, not from adding up the per-product ranges. Per-product ranges must never be summed - that assumes every product has its worst year simultaneously.",
+    "n_observations": 4245
+  },
+  "forecast_quantity_low": 119834.66885232867,
+  "forecast_quantity_high": 219312.83797668893,
+  "forecast_revenue_low": 1354372534.4846146,
+  "forecast_revenue_high": 2478675720.976299,
+  "forecast_quantity_low_if_summed": 74226.13,
+  "forecast_quantity_high_if_summed": 367146.48,
+  "reconciliation": {
+    "enabled": false,
+    "judged_on": "combined score (accuracy + total-level bias)",
+    "score_bottom_up": 1.1573068074836113,
+    "score_reconciled": 1.46334409085709,
+    "wape_bottom_up": 0.8294774912719756,
+    "wape_reconciled": 1.0100265396693844,
+    "total_error_bottom_up_pct": 32.78293162116355,
+    "total_error_reconciled_pct": 45.33175511877058,
+    "folds": [
+      {
+        "fold": "Fold 1",
+        "wape_bottom_up": 1.0235304307465687,
+        "wape_reconciled": 1.3213613982253611,
+        "total_error_bottom_up_pct": 45.522155484523076,
+        "total_error_reconciled_pct": 86.38794256860905,
+        "combined_bottom_up": 1.4787519855917994,
+        "combined_reconciled": 2.1852408239114514
+      },
+      {
+        "fold": "Fold 2",
+        "wape_bottom_up": 0.6354245517973826,
+        "wape_reconciled": 0.6986916811134077,
+        "total_error_bottom_up_pct": 20.043707757804025,
+        "total_error_reconciled_pct": 4.275567668932107,
+        "combined_bottom_up": 0.8358616293754229,
+        "combined_reconciled": 0.7414473578027287
+      }
+    ],
+    "reason": "Scaling product forecasts to Product Category 1 totals did not improve the combined score (accuracy + total-level bias) (1.157 as-is vs 1.463 scaled), so product forecasts are used exactly as the per-product models produced them."
+  },
+  "tier_counts": {
+    "D - No recent sales": 2485,
+    "C - Rare / lumpy seller": 1257,
+    "B - Occasional seller": 1032,
+    "A - Regular seller": 932
+  },
+  "model_counts": {
+    "No forecast (no recent sales)": 3393,
+    "Average of last 6 months": 634,
+    "Average of last 3 months": 256,
+    "Croston/SBA (for irregular demand)": 229,
+    "Straight-line trend": 195,
+    "Average of last 12 months": 181,
+    "Machine learning (learns from all products in this dataset together)": 178,
+    "Recent level x category seasonal pattern": 113,
+    "Average demand rate": 95,
+    "Exponential smoothing with damped trend": 86,
+    "Croston (for irregular demand)": 74,
+    "Long-run average": 70,
+    "Same month last year": 55,
+    "Recency-weighted average": 51,
+    "Exponential smoothing": 50,
+    "Same month, averaged over 2 years": 38,
+    "Repeat last month": 8
+  },
+  "config_used": {
+    "fiscal": {
+      "start_month": 4,
+      "forecast_fy": 2025,
+      "horizon": 12
+    },
+    "cleaning": {
+      "drop_exact_duplicates": false,
+      "drop_nonpositive_quantity": true,
+      "demand_statuses": [],
+      "revenue_statuses": [
+        "Billed",
+        "Pending Billing"
+      ],
+      "winsorise_quantile": 0.99,
+      "winsorise_for_fitting_only": true
+    },
+    "segmentation": {
+      "dense_min_active_months": 24,
+      "moderate_min_active_months": 6,
+      "dormant_if_no_sales_in_last_fy": true
+    },
+    "backtest": {
+      "folds": [
+        {
+          "name": "Fold 1",
+          "train_end_fy": 2022,
+          "test_fy": 2023
+        },
+        {
+          "name": "Fold 2",
+          "train_end_fy": 2023,
+          "test_fy": 2024
+        }
+      ],
+      "auto_n_folds": 2,
+      "auto_min_train_months": 24,
+      "fold_weights": [
+        0.35,
+        0.65
+      ],
+      "selection_margin": 0.05,
+      "baseline_models": [
+        "seasonal_naive",
+        "moving_average_3",
+        "moving_average_6",
+        "naive"
+      ],
+      "bias_weight": 1.0,
+      "allow_incomplete_fold_models": false,
+      "incomplete_fold_penalty": 0.1,
+      "_resolved_folds": [
+        {
+          "name": "Fold 1",
+          "train_end_fy": 2022,
+          "test_fy": 2023
+        },
+        {
+          "name": "Fold 2",
+          "train_end_fy": 2023,
+          "test_fy": 2024
+        }
+      ]
+    },
+    "models": {
+      "enable_holt_winters": true,
+      "enable_sarima": true,
+      "enable_global_ml": true,
+      "sarima_orders": [
+        [
+          [
+            1,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            1,
+            12
+          ]
+        ],
+        [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            1,
+            12
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            1,
+            12
+          ]
+        ]
+      ],
+      "recency_halflife_months": 18,
+      "croston_alpha": 0.1
+    },
+    "safeguards": {
+      "never_zero_if_sold_recently": true,
+      "max_growth_vs_recent_peak": 1.5
+    },
+    "reconciliation": {
+      "enabled": true,
+      "level": "Product Category 1",
+      "test_on_backtest": true,
+      "max_adjustment": 2.0,
+      "judge_on": "combined"
+    },
+    "pricing": {
+      "realised_price_window_months": 12,
+      "fallback_realised_to_list_ratio": 0.91,
+      "vip_discount": 0.0
+    },
+    "output": {
+      "round_quantities": false,
+      "round_annual_totals": true,
+      "currency": "THB"
+    }
+  }
+}

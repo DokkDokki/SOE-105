@@ -1,0 +1,37 @@
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# --- OS / editor ------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+~$*
+.vscode/
+.idea/
+
+# --- Large regenerated outputs ----------------------------------------------
+# Everything below is rebuilt by `python run_pipeline.py` in about 2 minutes,
+# so there is no reason to carry it in git history. The small result files
+# (accuracy summaries, model selection, data-quality report) ARE committed,
+# because they are the evidence behind the forecast.
+outputs/dashboard_bundle.pkl
+outputs/backtest_all_models_scored.csv
+outputs/FY*_forecast_by_customer.csv
+
+# --- Uploaded data ----------------------------------------------------------
+# Files a user uploads through the dashboard are their own, not part of the project.
+data/uploads/
+
+# --- Source data ------------------------------------------------------------
+# NOTE: whether data/raw/ is committed is a decision for the team.
+# It contains Mitsubishi's real sales figures (anonymised names, but genuine
+# quantities, prices and revenue). Uncomment the line below to keep it out of
+# the repository; the pipeline then expects each user to supply their own files.
+# data/raw/*.xlsx
+# data/raw/*.csv

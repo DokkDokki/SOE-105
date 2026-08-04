@@ -1,0 +1,14 @@
+# Mitsubishi FY2025 demand & revenue forecast
+# Tested with Python 3.13 on Windows 11.
+#   pip install -r requirements.txt
+
+pandas>=2.2,<3.0
+numpy>=1.26,<3.0
+scipy>=1.11
+statsmodels>=0.14          # Holt-Winters / SARIMA
+scikit-learn>=1.4          # pooled gradient-boosting model
+joblib>=1.3                # parallel model fitting
+PyYAML>=6.0                # config.yaml
+openpyxl>=3.1              # reading .xlsx source files
+streamlit>=1.30            # the dashboard
+plotly>=5.18               # dashboard charts

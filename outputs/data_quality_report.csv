@@ -1,0 +1,9 @@
+Check,Severity,Rows affected,What we found,What we did
+Zero quantity,info,52,Order lines with quantity 0 - not real transactions.,Rows dropped (zero effect on demand and revenue).
+Exact duplicate order lines,info,6863,Identical rows carrying 1.80% of total quantity. Forensic checks indicate these are genuine repeated ERP line items (only part of each order repeats; spread evenly across all four years; 65% are qty=1).,KEPT - dropping them would understate real demand. Set drop_exact_duplicates: true in config.yaml to reverse.
+Sales for unknown products,info,0,Every product in the sales history exists in the item master list.,No action needed.
+Sales for unknown customers,info,0,Every customer in the sales history exists in the customer list.,No action needed.
+Product ID with several product codes,info,0,Product ID and product code agree one-to-one.,No action needed.
+Customer ID with several company names,info,0,Customer ID and company name agree one-to-one.,No action needed.
+Price = 0 order lines,warning,4827,"4,827 order lines across 1,080 products have Base Price 0. Per the business this means the price is requested from the Japanese branch per order and varies - it is NOT free.","Never counted as zero revenue. Quantity is forecast normally; the unit price is recovered from the item's own realised prices, then the master list price, and only if both fail is revenue flagged PRICE_TBD."
+Order status treatment,info,33603,"The supplied data dictionary defines 'Closed' two different ways ('completed and closed' vs 'will not be fulfilled or billed'). 33,603 order lines are excluded from revenue.","DEMAND counts every status (a cancelled order still expressed real customer demand, which is what inventory planning needs). REVENUE counts only Billed, Pending Billing, so we never book money that was never invoiced."

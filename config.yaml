@@ -1,0 +1,221 @@
+# =============================================================================
+# Mitsubishi FY2025 Demand & Revenue Forecast - configuration
+# Every modelling and cleaning decision is declared here so the team can see,
+# defend, and change it without touching code.
+# =============================================================================
+
+fiscal:
+  # Fiscal year starts in April (Japanese convention).
+  # DETECTED FROM DATA, not assumed: the source extract runs exactly
+  # 2021-04-01 -> 2025-03-31 (four complete Apr-Mar years, 48 months, no gaps),
+  # and March is the peak month (10.6% of annual qty vs 8.3% flat) - the
+  # classic fiscal year-end push. See docs/ASSUMPTIONS.md.
+  start_month: 4
+  # FY label = the calendar year in which the fiscal year STARTS.
+  # FY2024 = Apr 2024 - Mar 2025.  Forecast target FY2025 = Apr 2025 - Mar 2026.
+  forecast_fy: 2025
+  horizon: 12
+
+cleaning:
+  # Exact duplicate order lines. Forensic evidence (docs/ASSUMPTIONS.md) shows
+  # these are GENUINE repeated ERP line items, not an export artifact:
+  #   - 2,568 of 2,674 affected orders duplicate only SOME lines, not the whole
+  #     order (an export bug would clone the entire order block uniformly)
+  #   - they are spread evenly across all four fiscal years (3.8%-5.2% each),
+  #     not clustered in one bad batch
+  #   - 65% carry qty=1, the signature of N units entered as N lines
+  # Set to true only if the business confirms they are erroneous.
+  drop_exact_duplicates: false
+
+  # Rows with Quantity <= 0 are not transactions (52 rows, zero revenue impact).
+  drop_nonpositive_quantity: true
+
+  # --- Order status handling -------------------------------------------------
+  # The supplied data dictionary contradicts itself on "Closed":
+  #   "Sales Sheet" sheet        -> "completed and officially closed"
+  #   "Sales Order History" sheet-> "won't be fulfilled or billed"
+  # Closed is 14.5% of FY2024 quantity, so this materially changes the answer.
+  # Decision (confirmed with the business):
+  #   DEMAND  = every status. A Closed order still expressed real customer
+  #             demand, which is exactly the signal inventory planning needs.
+  #   REVENUE = invoiced statuses only, so we never book money that was
+  #             never billed.
+  demand_statuses: []            # empty list = include all statuses
+  revenue_statuses: ["Billed", "Pending Billing"]
+
+  # Outliers are NOT deleted - large orders are real demand. They are winsorised
+  # for MODEL FITTING only; scoring and reporting always use untrimmed actuals.
+  winsorise_quantile: 0.99
+  winsorise_for_fitting_only: true
+
+segmentation:
+  # Active months = calendar months in which the product recorded any sale,
+  # out of the 48 months of history.
+  dense_min_active_months: 24      # Tier A - full model bake-off
+  moderate_min_active_months: 6    # Tier B - robust simple methods
+  # Tier C = 1-5 active months (intermittent -> Croston / SBA)
+  # Tier D = no sales in the most recent fiscal year (dormant -> zero)
+  dormant_if_no_sales_in_last_fy: true
+
+backtest:
+  # --- Fold definitions -----------------------------------------------------
+  # Two folds. The second is the fold the brief asked for (train FY2021-FY2023,
+  # forecast FY2024); the first guards against picking a model that merely
+  # happened to catch the FY22->FY23 break.
+  #
+  # Set `folds: auto` to GENERATE them from whatever history is present. That
+  # is the recommended setting for ongoing use: hand-written folds would keep
+  # testing against the same two old years after new data arrives, going stale
+  # while still appearing to work. Auto always tests the most recent complete
+  # fiscal years. It also unlocks the seasonal models by itself - they need
+  # 25-28 months of training data and today's earliest fold has only 24, so one
+  # more year of history brings Holt-Winters and SARIMA into play with no code
+  # change (see docs/ASSUMPTIONS.md section 16).
+  folds:
+    - name: "Fold 1"
+      train_end_fy: 2022          # train FY2021-FY2022 -> test FY2023
+      test_fy: 2023
+    - name: "Fold 2"
+      train_end_fy: 2023          # train FY2021-FY2023 -> test FY2024
+      test_fy: 2024
+
+  # Used only when `folds: auto`.
+  auto_n_folds: 2                 # how many recent years to test against
+  auto_min_train_months: 24       # skip a fold with less training history than this
+
+  # Fold 2 is more recent and therefore more representative; weight it higher.
+  # Leave empty when using `folds: auto` and weights are generated (rising
+  # linearly towards the most recent fold).
+  fold_weights: [0.35, 0.65]
+
+  # Anti-overfitting guard. A 12-point test window can crown a complex model by
+  # luck. A non-baseline model is only selected if it beats the best baseline by
+  # this relative margin on the selection score; otherwise the baseline wins.
+  selection_margin: 0.05
+  baseline_models: ["seasonal_naive", "moving_average_3", "moving_average_6", "naive"]
+
+  # --- Why the selection score is not just WAPE -----------------------------
+  # Minimising absolute error on intermittent demand drives the forecast towards
+  # the MEDIAN of the series, and for a product that sells in 4 months out of 12
+  # the median is zero. Selecting purely on WAPE therefore produces a large
+  # systematic UNDER-forecast: measured at -30% of total units on Fold 2.
+  # That is exactly the wrong error for a company already suffering stock
+  # shortages, so the score adds a penalty on getting the annual total wrong.
+  #   score = WAPE + bias_weight * |forecast_total - actual_total| / actual_total
+  # A forecast of zero for a product that does sell scores 1.0 + 1.0 = 2.0 and
+  # can no longer win by default.
+  bias_weight: 1.0
+
+  # --- Models that cannot be tested on every fold ---------------------------
+  # KNOWN LIMITATION, measured and deliberately accepted.
+  # Fold 1 has only 24 months of training data. Holt-Winters needs 25 and
+  # SARIMA needs 28, so all seven seasonal models score nothing on Fold 1 and
+  # are excluded by the rule below - they win 0 products out of 5,706.
+  #
+  # This was tested: allowing them to compete on Fold 2 alone (with a 10%
+  # penalty) made the forecast measurably WORSE, degrading Fold 2 from -19.2%
+  # to -21.7% total error and WAPE from 0.636 to 0.659. The reason is that the
+  # two folds differ enormously in difficulty (Fold 1 WAPE ~1.03 vs Fold 2
+  # ~0.63), so a model that skips Fold 1 gets a free pass on the hard exam and
+  # its average score flatters it. Selecting a model on the only fold it ran on
+  # is also circular.
+  #
+  # The real fix is more history or a rolling-origin fold scheme with >=30
+  # month training windows - see docs/ASSUMPTIONS.md section 16.
+  # Set to true to allow them anyway (not recommended on this dataset).
+  allow_incomplete_fold_models: false
+  incomplete_fold_penalty: 0.10
+
+models:
+  # Enabled candidates. Each product is routed to the models its history can
+  # actually support, then the per-product winner is chosen by back-test.
+  enable_holt_winters: true
+  enable_sarima: true
+  enable_global_ml: true
+  sarima_orders:                  # kept small deliberately - see ASSUMPTIONS.md
+    - [[1, 0, 1], [0, 1, 1, 12]]
+    - [[1, 1, 1], [1, 0, 1, 12]]
+    - [[0, 1, 1], [0, 1, 1, 12]]
+  recency_halflife_months: 18     # exponential recency weighting (structural break)
+  croston_alpha: 0.1
+
+safeguards:
+  # --- FLOOR: the stock-SHORTAGE guard --------------------------------------
+  # A product that demonstrably sold in the last 12 months is never forecast at
+  # zero for a whole year. The back-test cannot catch this on its own: for a
+  # lumpy product whose test year happened to contain no sales, a zero forecast
+  # scores perfectly, so zero wins on the evidence alone. Planning zero for a
+  # product that does sell guarantees a stockout - precisely the failure this
+  # project exists to prevent.
+  # The floor is LAST YEAR'S OWN VOLUME, deliberately not a lifetime average:
+  # a lifetime average turned a product selling 1 unit a year into a forecast
+  # of 24, because it had been a fast mover three years earlier.
+  never_zero_if_sold_recently: true
+
+  # --- CAP: the stock-SURPLUS guard -----------------------------------------
+  # No product may be forecast above this multiple of the largest annual volume
+  # it achieved in the last three fiscal years. Simple methods such as "repeat
+  # last month" and straight-line trend can take one unusually large final
+  # month and project it across twelve - one product jumped from 290 units to
+  # 948 that way. There is no evidence for volumes beyond historical peaks.
+  # Set to 0 to disable the cap entirely.
+  max_growth_vs_recent_peak: 1.5
+
+reconciliation:
+  # Item forecasts are scaled so they sum to an independently-forecast
+  # Product Category 1 total. Category series are dense and well behaved even
+  # when their member products are not, so they carry far more reliable trend
+  # information. Whether this actually helps is DECIDED BY THE BACK-TEST, not
+  # assumed - see outputs/reconciliation_decision.json.
+  enabled: true
+  level: "Product Category 1"
+  test_on_backtest: true
+  max_adjustment: 2.0             # never scale an item by more than 2x either way
+
+  # Reconciliation is judged on the SAME combined score used for model
+  # selection (accuracy + total-level bias), not on WAPE alone. Judging it on
+  # WAPE alone is misleading: scaling a forecast up to the right total can
+  # increase per-month absolute error while making the number the business
+  # actually plans against materially better.
+  judge_on: "combined"            # "combined" | "wape" | "total_error"
+
+pricing:
+  # Base Price = 0 does NOT mean free. Per the business, it means the price is
+  # requested from the Japanese branch per order and varies.
+  # Resolution cascade (first rule that succeeds wins):
+  #   1. realised  - median non-zero Base Price for that item in the last N months
+  #   2. realised_all - median non-zero Base Price over the item's whole history
+  #   3. list_adjusted - master List price x catalogue-wide realised/list ratio
+  #   4. unknown  - revenue flagged "PRICE_TBD", quantity still forecast
+  realised_price_window_months: 12
+  # Catalogue-median realised/list ratio is computed from the data at run time;
+  # this is only the fallback if it cannot be computed.
+  fallback_realised_to_list_ratio: 0.91
+
+  # --- VIP customer discount: OPEN QUESTION FOR MITSUBISHI ------------------
+  # The data dictionary's Customer sheet states "VIP: 37% discount from List
+  # Price". But in the transaction data VIP and End User lines are priced
+  # almost identically against the master list price (median 0.891 vs 0.910),
+  # and only 0.6% of VIP lines sit near 0.63x list. So `Base Price` looks like
+  # a standard/reference price that does NOT already include the VIP discount.
+  #
+  # This is material: 10 VIP customers carry 62% of all quantity and 62% of
+  # gross revenue. If their invoices really are 37% below Base Price, forecast
+  # revenue is overstated by roughly 23%.
+  #
+  # It cannot be settled from the data - there is no invoice-amount column to
+  # check against - so nothing is applied by default. Once Mitsubishi confirms,
+  # set this to 0.37 and re-run; the discount is applied per product in
+  # proportion to that product's VIP sales share.
+  vip_discount: 0.0
+
+output:
+  # Monthly quantities are EXPECTED demand, so they are kept fractional.
+  # Rounding each month to a whole number silently deletes slow movers: a
+  # product genuinely expected to sell 0.4 units a month rounds to 0 in every
+  # month and disappears from the plan. Doing that wiped out 1,922 real
+  # products and 12.5% of total volume. Annual totals are rounded for display
+  # instead, which keeps the units honest without losing the slow movers.
+  round_quantities: false
+  round_annual_totals: true
+  currency: "THB"

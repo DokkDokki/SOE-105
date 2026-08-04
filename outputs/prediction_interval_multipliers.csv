@@ -1,0 +1,4 @@
+tier,low_multiplier,median_multiplier,high_multiplier,products_measured,observations,basis
+A - Regular seller,0.47393229815538007,0.9744635792096741,1.7142857142857144,932,1864,own segment
+B - Occasional seller,0.2,1.0,4.0,968,1828,own segment
+C - Rare / lumpy seller,0.0,1.0,3.0,413,553,own segment

@@ -1,0 +1,3 @@
+Fold,Test year,Products scored,Actual units,Forecast units (models only),Forecast units (as delivered),Total error % (models only),Total error % (as delivered),WAPE (models only),WAPE (as delivered),Shortage floor applied to,Surplus cap applied to
+Fold 1,FY2023,3866,142923.0,207984.6302831449,212592.1600817687,45.522155484523076,48.74594017881566,1.0235304307465687,1.0505216895901648,380,60
+Fold 2,FY2024,4622,190096.0,151993.71330072486,153905.64081610084,-20.043707757804025,-19.037938296386645,0.6354245517973826,0.642246531404267,277,77

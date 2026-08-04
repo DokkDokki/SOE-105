@@ -1,0 +1,31 @@
+{
+  "enabled": false,
+  "judged_on": "combined score (accuracy + total-level bias)",
+  "score_bottom_up": 1.1573068074836113,
+  "score_reconciled": 1.46334409085709,
+  "wape_bottom_up": 0.8294774912719756,
+  "wape_reconciled": 1.0100265396693844,
+  "total_error_bottom_up_pct": 32.78293162116355,
+  "total_error_reconciled_pct": 45.33175511877058,
+  "folds": [
+    {
+      "fold": "Fold 1",
+      "wape_bottom_up": 1.0235304307465687,
+      "wape_reconciled": 1.3213613982253611,
+      "total_error_bottom_up_pct": 45.522155484523076,
+      "total_error_reconciled_pct": 86.38794256860905,
+      "combined_bottom_up": 1.4787519855917994,
+      "combined_reconciled": 2.1852408239114514
+    },
+    {
+      "fold": "Fold 2",
+      "wape_bottom_up": 0.6354245517973826,
+      "wape_reconciled": 0.6986916811134077,
+      "total_error_bottom_up_pct": 20.043707757804025,
+      "total_error_reconciled_pct": 4.275567668932107,
+      "combined_bottom_up": 0.8358616293754229,
+      "combined_reconciled": 0.7414473578027287
+    }
+  ],
+  "reason": "Scaling product forecasts to Product Category 1 totals did not improve the combined score (accuracy + total-level bias) (1.157 as-is vs 1.463 scaled), so product forecasts are used exactly as the per-product models produced them."
+}

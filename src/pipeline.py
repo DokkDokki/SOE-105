@@ -23,6 +23,7 @@ from . import fiscal as FI
 from . import forecast as FC
 from . import ingest as IN
 from . import intervals as IV
+from . import inventory as INV
 from . import models as MOD
 from . import pricing as PR
 from .config import DATA_RAW, OUTPUTS, ensure_dirs, load_config
@@ -37,6 +38,9 @@ class PipelineResult:
     backtest_detail: pd.DataFrame = field(default_factory=pd.DataFrame)
     backtest_summary: pd.DataFrame = field(default_factory=pd.DataFrame)
     accuracy_delivered: pd.DataFrame = field(default_factory=pd.DataFrame)
+    benchmark: pd.DataFrame = field(default_factory=pd.DataFrame)
+    frontier: pd.DataFrame = field(default_factory=pd.DataFrame)
+    accuracy_levels: pd.DataFrame = field(default_factory=pd.DataFrame)
     accuracy_by_tier: pd.DataFrame = field(default_factory=pd.DataFrame)
     interval_multipliers: pd.DataFrame = field(default_factory=pd.DataFrame)
     profile: pd.DataFrame = field(default_factory=pd.DataFrame)
@@ -188,6 +192,12 @@ def run_pipeline(
     res.backtest_summary = BT.overall_accuracy(detail, selection)
     res.accuracy_delivered = BT.accuracy_as_delivered(
         fold_store, selection, panel, cfg, fm_of)
+    res.benchmark = BT.benchmark_comparison(
+        fold_store, selection, panel, cfg, fm_of)
+    status("Building the inventory decision frontier...", 0.69)
+    res.frontier = INV.build_frontier(fold_store, selection, panel, cfg, fm_of)
+    res.accuracy_levels = BT.accuracy_by_level(
+        fold_store, selection, panel, cfg, fm_of, items)
 
     # ------------------------------------------------ 7. reconciliation test
     status("Testing whether category reconciliation improves accuracy...", 0.70)
@@ -266,7 +276,8 @@ def run_pipeline(
     # --------------------------------------------- 9b. prediction intervals
     status("Working out how wide the uncertainty really is...", 0.90)
     res.interval_multipliers, interval_summary = IV.compute_multipliers(
-        fold_store, selection, panel, cfg, fm_of, res.profile)
+        fold_store, selection, panel, cfg, fm_of, res.profile,
+        backtest_detail=detail)
     long, agg = IV.apply_intervals(long, agg, res.interval_multipliers, res.profile)
     res.forecast = long
     res.forecast_by_product = agg
@@ -326,7 +337,7 @@ def run_pipeline(
                 "Products": g["item_id"].nunique(),
                 "Actual units": g["actual_total"].sum(),
                 "Forecast units": g["forecast_total"].sum(),
-                "WAPE": (g["MAE"] * 12).sum() / g["actual_total"].sum()
+                "WAPE": (g["MAE"] * g["n_months"]).sum() / g["actual_total"].sum()
                 if g["actual_total"].sum() > 0 else np.nan,
                 "Median MAPE": g["MAPE"].median(),
                 "Median MASE": g["MASE"].median(),
@@ -448,6 +459,15 @@ def write_all(res: PipelineResult, recon_audit: pd.DataFrame | None = None) -> N
     if not res.accuracy_delivered.empty:
         res.accuracy_delivered.to_csv(
             OUTPUTS / "backtest_accuracy_as_delivered.csv", index=False)
+    if not res.frontier.empty:
+        res.frontier.to_csv(OUTPUTS / "inventory_service_frontier.csv", index=False)
+    if not res.accuracy_levels.empty:
+        res.accuracy_levels.to_csv(
+            OUTPUTS / "accuracy_by_decision_level.csv", index=False)
+    if not res.benchmark.empty:
+        res.benchmark.drop(columns=[c for c in ("_ours",) if c in res.benchmark],
+                           errors="ignore").to_csv(
+            OUTPUTS / "benchmark_comparison.csv", index=False)
     if not res.accuracy_by_tier.empty:
         res.accuracy_by_tier.to_csv(OUTPUTS / "backtest_accuracy_by_segment.csv", index=False)
     if not res.backtest_detail.empty:
@@ -487,6 +507,11 @@ def write_all(res: PipelineResult, recon_audit: pd.DataFrame | None = None) -> N
         "backtest_detail": res.backtest_detail,
         "backtest_summary": res.backtest_summary,
         "accuracy_delivered": res.accuracy_delivered,
+        "benchmark": res.benchmark,
+        "frontier": res.frontier,
+        "accuracy_levels": res.accuracy_levels,
+        "frontier_test_fy": res.frontier.attrs.get("test_fy") if not res.frontier.empty else None,
+        "frontier_total_demand": res.frontier.attrs.get("total_demand") if not res.frontier.empty else None,
         "interval_multipliers": res.interval_multipliers,
         "accuracy_by_tier": res.accuracy_by_tier,
         "profile": res.profile,

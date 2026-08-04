@@ -35,7 +35,7 @@ MIN_SAMPLES = 40          # below this, fall back to the all-product pool
 
 def _annual_ratios(
     fold_store: dict, selection: pd.DataFrame, panel: pd.DataFrame, cfg: dict,
-    fiscal_month_of: dict,
+    fiscal_month_of: dict, only_folds: list | None = None,
 ) -> pd.DataFrame:
     """Actual-to-forecast ratio per product per fold, using delivered forecasts."""
     from .features import seasonal_profile
@@ -46,6 +46,8 @@ def _annual_ratios(
     rows = []
 
     for fold_name, store in fold_store.items():
+        if only_folds is not None and fold_name not in only_folds:
+            continue
         preds, actual = store["preds"], store["actual"]
         h = actual.shape[1]
         chosen = np.full((len(item_ids), h), np.nan)
@@ -85,9 +87,34 @@ def compute_multipliers(
     fold_store: dict, selection: pd.DataFrame, panel: pd.DataFrame, cfg: dict,
     fiscal_month_of: dict, profile: pd.DataFrame,
     low_q: float = 0.10, high_q: float = 0.90,
+    backtest_detail: pd.DataFrame | None = None,
 ) -> tuple[pd.DataFrame, dict]:
-    """Low/high multipliers per reliability segment, plus a portfolio summary."""
-    ratios = _annual_ratios(fold_store, selection, panel, cfg, fiscal_month_of)
+    """Low/high multipliers per reliability segment, plus a portfolio summary.
+
+    OUT-OF-SAMPLE where the data allows it. Measuring the interval with the
+    final selection would be circular: that selection saw both test years, so
+    the resulting spread describes how well the winner fitted the years it was
+    chosen on, and is systematically too narrow. When at least two folds exist,
+    the models are instead re-selected using only the EARLIER fold(s), and the
+    ratios measured only on the LATEST fold - a year that played no part in
+    choosing them. With a single fold the in-sample measurement is kept and
+    labelled as such.
+    """
+    measurement = "in-sample"
+    sel_for_ratios, ratio_folds = selection, None
+    if backtest_detail is not None and not backtest_detail.empty and len(fold_store) >= 2:
+        from .backtest import select_models
+        latest = max(fold_store, key=lambda k: fold_store[k]["test_fy"])
+        early_detail = backtest_detail[backtest_detail["fold"] != latest]
+        if not early_detail.empty:
+            oos_sel = select_models(early_detail, cfg)
+            if not oos_sel.empty:
+                sel_for_ratios, ratio_folds = oos_sel, [latest]
+                measurement = (
+                    f"out-of-sample (models selected without {latest}, "
+                    f"measured on {latest} only)")
+    ratios = _annual_ratios(fold_store, sel_for_ratios, panel, cfg,
+                            fiscal_month_of, only_folds=ratio_folds)
     if ratios.empty:
         return pd.DataFrame(), {}
 
@@ -124,7 +151,8 @@ def compute_multipliers(
     # exactly that: how the company total landed in each hidden year. Two
     # observations is few, but they bracket a crash year and a rebound year,
     # which is the relevant risk.
-    per_fold = ratios.groupby("fold", observed=True)[["actual", "forecast"]].sum()
+    ratios_pf = _annual_ratios(fold_store, selection, panel, cfg, fiscal_month_of)
+    per_fold = ratios_pf.groupby("fold", observed=True)[["actual", "forecast"]].sum()
     per_fold["ratio"] = per_fold["actual"] / per_fold["forecast"]
     fold_ratios = {k: float(v) for k, v in per_fold["ratio"].items()}
 
@@ -143,6 +171,7 @@ def compute_multipliers(
             "every product has its worst year simultaneously."
         ),
         "n_observations": int(len(ratios)),
+        "measurement_basis": measurement,
     }
     return mult, summary
 

@@ -178,11 +178,13 @@ than exists here and would overfit spectacularly.
 
 ### 4. Two business safeguards
 
-- **Shortage floor** — a product that demonstrably sold in the last 12 months is
-  never forecast at zero for a whole year. The floor is *last year's own volume*,
-  deliberately not a lifetime average (a lifetime average turned a product selling
-  1 unit/year into a forecast of 24, because it had been a fast mover three years
-  earlier). Applied to **1,247 products**.
+- **Shortage floor** — no product that demonstrably sold in the last 12 months is
+  forecast below **25% of its own last-year volume**. The reference is last year's
+  volume, deliberately not a lifetime average (a lifetime average turned a product
+  selling 1 unit/year into a forecast of 24, because it had been a fast mover three
+  years earlier). An earlier version triggered only on exactly-zero forecasts, which
+  let a product selling 1,786 units/year be forecast at 12; a code review caught
+  this and the floor is now proportional. Applied to **1,276 products**.
 - **Surplus cap** — no product is forecast above **1.5× its largest annual volume in
   the last three years**. "Repeat last month" and straight-line trend can take one
   unusually large final month and project it across twelve — one product jumped

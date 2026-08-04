@@ -152,6 +152,34 @@ safeguards:
   # of 24, because it had been a fast mover three years earlier.
   never_zero_if_sold_recently: true
 
+  # The floor triggers when the annual forecast falls below this fraction of
+  # the product's OWN volume over the last twelve months.
+  #
+  # Originally the floor triggered only on an exactly-zero forecast, which let
+  # the worst cases straight through: a product that sold 1,786 units last year
+  # was forecast at 12, and one that sold 51 units across 10 months was
+  # forecast at 0.09. Both passed a "> 0" test, so the safeguard written to
+  # prevent stockouts missed precisely the stockouts it existed to prevent.
+  #
+  # 0.25 still permits a genuine 75% decline to be forecast, while catching
+  # forecasts sitting 95-99% below demonstrated recent demand. Set to 0 to
+  # restore the old exactly-zero behaviour.
+  min_fraction_of_last_year: 0.25
+
+  # The floor triggers when the annual forecast falls below this fraction of the
+  # product's OWN volume over the last twelve months.
+  #
+  # This was originally written to trigger only on an exactly-zero forecast,
+  # which let the worst cases straight through: a product that sold 1,786 units
+  # last year was forecast at 12, and one that sold 51 units across 10 months
+  # was forecast at 0.09. Both passed a "> 0" test, so the safeguard written to
+  # prevent stockouts missed precisely the stockouts it existed to prevent.
+  #
+  # 0.25 still permits a genuine 75% decline to be forecast, while catching
+  # forecasts that are 95-99% below demonstrated recent demand. Set to 0 to
+  # restore the old exactly-zero behaviour.
+  min_fraction_of_last_year: 0.25
+
   # --- CAP: the stock-SURPLUS guard -----------------------------------------
   # No product may be forecast above this multiple of the largest annual volume
   # it achieved in the last three fiscal years. Simple methods such as "repeat

@@ -66,6 +66,22 @@ one-line switch in `config.yaml`.
 | What does order status `Closed` mean? (14.5% of volume) | Demand yes, revenue no | `cleaning.revenue_statuses` |
 | Is Apr 2025 – Mar 2026 called FY2025 or FY2026? | FY2025 | `fiscal.forecast_fy` |
 
+## Next working session: event-oriented approaches
+
+The error diagnosis showed demand here is event-driven, not pattern-driven
+(0.43% of order lines carry 16% of volume; two spike months carry 31% of the
+remaining error). Four approaches to test against the existing back-test harness,
+in order: (1) base + spike decomposition, (2) customer-renewal modelling for the
+top ~10 accounts, (3) a precursor test — do large orders leave early traces in
+the data, (4) per-product event-exposure buffers on the Inventory page. Adopt
+only what wins the back-test; document losers in ASSUMPTIONS.
+
+## Improvement roadmap
+
+The measured improvement plan (selection headroom, ensemble test results, error
+concentration analysis) lives in `docs/IMPROVEMENT_ROADMAP.md` — written to be
+lifted directly into the progress presentation's "next steps" section.
+
 ## Recommended before any of the above
 
 Switch the back-test folds to `auto` in `config.yaml` for ongoing use — see the

@@ -206,16 +206,24 @@ Controlled by `output.round_quantities`.
 
 ### Shortage floor (`safeguards.never_zero_if_sold_recently`)
 
-A product that demonstrably sold in the last 12 months is **never** forecast at zero
-for a whole year.
+No product that demonstrably sold in the last 12 months is forecast below
+**25% of its own last-year volume** (`safeguards.min_fraction_of_last_year`).
 
 **Why the back-test cannot catch this on its own:** for a lumpy product whose test
-year happened to contain no sales, a zero forecast scores *perfectly*. Zero wins on
-the evidence — but planning zero for a product that does sell guarantees a stockout.
+year happened to contain no sales, a near-zero forecast scores *well*. Near-zero wins
+on the evidence — but planning near-zero for a product that does sell guarantees a
+stockout.
 
-**The floor is last year's own volume**, deliberately **not** a lifetime average. A
-lifetime average turned a product selling 1 unit/year into a forecast of 24, because
-it had been a fast mover three years earlier. Applied to **1,247 products**.
+**Revised after code review.** The original floor triggered only on an exactly-zero
+annual forecast, which let the worst cases through: a product that sold 1,786 units
+was forecast at 12, and one that sold 51 units across 10 months was forecast at
+0.09 — both passed a "greater than zero" test. The original design also floored
+zero-forecast products at 100% of last year, creating an indefensible discontinuity
+(a forecast of 0.00 received the full floor; a forecast of 0.01 received nothing).
+The proportional floor removes both defects, and back-test WAPE improved on both
+folds (1.051 to 1.032, and 0.642 to 0.637). The reference is last year's own volume,
+deliberately **not** a lifetime average, which turned a product selling 1 unit/year
+into a forecast of 24. Applied to **1,276 products**.
 
 ### Surplus cap (`safeguards.max_growth_vs_recent_peak`)
 
@@ -379,6 +387,14 @@ and bounded below by zero. A normal-theory interval would be symmetric and could
 negative, which is meaningless. The measured distribution is none of those things —
 Segment C's 10th percentile is exactly 0.00, because a lumpy product genuinely can
 sell nothing in a year.
+
+**Revised after code review: the measurement is now out-of-sample.** The original
+implementation measured the ratios on the same two folds used to select the models,
+which is circular and produces intervals that are systematically too narrow. The
+multipliers are now computed by re-selecting models using only the earlier fold and
+measuring ratios exclusively on the most recent fold, which played no part in
+choosing them. The portfolio-level bracket (below) still uses both folds, since its
+purpose is to span the crash-year and rebound-year regimes.
 
 **The aggregation trap.** Adding up per-product intervals gave 74,226 – 367,146
 units, so wide it carried no information. That calculation implicitly assumes all

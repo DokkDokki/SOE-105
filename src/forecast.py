@@ -213,14 +213,30 @@ def apply_safeguards(
 
     # ------------------------------------------------------------- floor
     if sg.get("never_zero_if_sold_recently", True):
-        rows = np.flatnonzero((last12_total > 0) & (annual_fc <= 0))
+        # The floor must trigger on an IMPLAUSIBLY LOW forecast, not only on an
+        # exactly-zero one. Testing `annual_fc <= 0` let the worst cases through:
+        # one product that sold 1,786 units last year was forecast at 12, and
+        # another that sold 51 units across 10 months was forecast at 0.09.
+        # Both passed the old test because 12 > 0 and 0.09 > 0, so the safeguard
+        # written to prevent stockouts missed the very stockouts it existed for.
+        min_frac = float(sg.get("min_fraction_of_last_year", 0.25) or 0.0)
+        floor_qty = last12_total * min_frac
+        rows = np.flatnonzero((last12_total > 0) & (annual_fc < floor_qty))
         if rows.size:
-            # Spread last year's volume across the year using the shared
-            # seasonal shape rather than a flat line.
             shape = np.asarray(seas_prof, dtype=float)
             shape = shape / shape.sum() if shape.sum() > 0 else np.full(12, 1 / 12)
-            spread = np.tile(shape[:h] / shape[:h].sum(), (rows.size, 1))
-            fc[rows] = spread * last12_total[rows, None]
+            spread = shape[:h] / shape[:h].sum()
+
+            for r in rows:
+                if annual_fc[r] > 0:
+                    # Scale the existing forecast up. This preserves whatever
+                    # month-to-month shape the chosen model produced, which is
+                    # information worth keeping.
+                    fc[r] = fc[r] * (floor_qty[r] / annual_fc[r])
+                else:
+                    # Nothing to preserve - distribute across the year using the
+                    # pooled seasonal shape.
+                    fc[r] = spread * floor_qty[r]
             floor_used[rows] = True
             annual_fc = fc.sum(axis=1)
 

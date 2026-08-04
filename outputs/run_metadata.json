@@ -1,6 +1,6 @@
 {
-  "run_at": "2026-08-04T19:08:38",
-  "runtime_seconds": 121.4,
+  "run_at": "2026-08-04T21:15:47",
+  "runtime_seconds": 140.8,
   "fiscal_start_month": 4,
   "fiscal_year_label": "Apr-Mar",
   "fiscal_detection_confidence": "high",
@@ -40,9 +40,9 @@
   "rows_out": 271948,
   "n_products": 5706,
   "n_customers": 2159,
-  "n_products_forecast_nonzero": 3217,
-  "total_forecast_quantity": 180978.0,
-  "total_forecast_revenue": 2045415028.0,
+  "n_products_forecast_nonzero": 2742,
+  "total_forecast_quantity": 176720.0,
+  "total_forecast_revenue": 1916919123.0,
   "n_price_tbd": 5,
   "n_price_variable": 1075,
   "realised_to_list_ratio": 0.8846936468460321,
@@ -62,30 +62,31 @@
     "vip_share_of_quantity": 0.6272477597126116,
     "average_price_multiplier": 1.0
   },
-  "revenue_if_vip_discount_37pct": 1584275815.4273329,
+  "revenue_if_vip_discount_37pct": 1471663588.370106,
   "intervals": {
-    "overall_low_multiplier": 0.28571428571428575,
-    "overall_median_multiplier": 1.0,
-    "overall_high_multiplier": 2.5863830613830605,
+    "overall_low_multiplier": 0.0,
+    "overall_median_multiplier": 0.8969727459573347,
+    "overall_high_multiplier": 4.073731884057983,
     "quantiles": [
       0.1,
       0.9
     ],
     "portfolio_ratio_by_fold": {
-      "Fold 1": 0.6621504760375774,
-      "Fold 2": 1.2118204310838274
+      "Fold 1": 0.6713263553467602,
+      "Fold 2": 1.2230535404586906
     },
-    "portfolio_low_multiplier": 0.6621504760375774,
-    "portfolio_high_multiplier": 1.2118204310838274,
+    "portfolio_low_multiplier": 0.6713263553467602,
+    "portfolio_high_multiplier": 1.2230535404586906,
     "portfolio_basis": "The company-wide range comes from how the TOTAL actually landed in each hidden back-test year, not from adding up the per-product ranges. Per-product ranges must never be summed - that assumes every product has its worst year simultaneously.",
-    "n_observations": 4245
+    "n_observations": 2343,
+    "measurement_basis": "out-of-sample (models selected without Fold 2, measured on Fold 2 only)"
   },
-  "forecast_quantity_low": 119834.66885232867,
-  "forecast_quantity_high": 219312.83797668893,
-  "forecast_revenue_low": 1354372534.4846146,
-  "forecast_revenue_high": 2478675720.976299,
-  "forecast_quantity_low_if_summed": 74226.13,
-  "forecast_quantity_high_if_summed": 367146.48,
+  "forecast_quantity_low": 118636.79351687946,
+  "forecast_quantity_high": 216138.02166985982,
+  "forecast_revenue_low": 1286878328.338098,
+  "forecast_revenue_high": 2344494720.1581182,
+  "forecast_quantity_low_if_summed": 78223.47,
+  "forecast_quantity_high_if_summed": 517098.16,
   "reconciliation": {
     "enabled": false,
     "judged_on": "combined score (accuracy + total-level bias)",
@@ -256,6 +257,7 @@
     },
     "safeguards": {
       "never_zero_if_sold_recently": true,
+      "min_fraction_of_last_year": 0.25,
       "max_growth_vs_recent_peak": 1.5
     },
     "reconciliation": {

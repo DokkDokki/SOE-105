@@ -324,6 +324,7 @@ def run_backtest(
                 "Bias": (p - a).mean(axis=1),
                 "actual_total": a.sum(axis=1),
                 "forecast_total": p.sum(axis=1),
+                "n_months": h,
             }))
 
     results = pd.concat(rows, ignore_index=True) if rows else pd.DataFrame()
@@ -517,6 +518,166 @@ def accuracy_as_delivered(
     return pd.DataFrame(rows)
 
 
+def benchmark_comparison(
+    fold_store: dict, selection: pd.DataFrame, panel: pd.DataFrame, cfg: dict,
+    fiscal_month_of: dict,
+) -> pd.DataFrame:
+    """Compare the delivered forecast against the simplest possible alternatives.
+
+    An error figure on its own is not interpretable. "WAPE 1.05" means nothing
+    until you know that repeating last year scored 1.49 on the same data. This
+    is the comparison that tells a reader whether the method earned its
+    complexity, and it is the honest way to present a year in which every
+    method performed poorly.
+    """
+    from .features import seasonal_profile
+    from .forecast import apply_safeguards
+
+    if not fold_store or selection.empty:
+        return pd.DataFrame()
+
+    sel_map = selection.set_index("item_id")["model"].to_dict()
+    item_ids = panel.index.to_numpy()
+    rows = []
+
+    for fold_name, store in fold_store.items():
+        actual = store["actual"]
+        train = store["train_values"]
+        h = actual.shape[1]
+        if train.shape[1] < h:
+            continue
+
+        # --- what this pipeline delivered -------------------------------
+        chosen = np.full((len(item_ids), h), np.nan)
+        for i, iid in enumerate(item_ids):
+            m = sel_map.get(iid)
+            if m and m in store["preds"] and not np.isnan(store["preds"][m][i]).any():
+                chosen[i] = store["preds"][m][i]
+        valid = ~np.isnan(chosen).any(axis=1)
+        if valid.sum() == 0:
+            continue
+
+        train_panel = pd.DataFrame(train, index=item_ids,
+                                   columns=panel.columns[: store["split"]])
+        seas = seasonal_profile(train_panel, fiscal_month_of)
+        hist_fms = np.array([fiscal_month_of[c] for c in train_panel.columns])
+        delivered, _, _ = apply_safeguards(
+            chosen[valid].copy(), train[valid], hist_fms, seas, cfg)
+
+        a = actual[valid]
+        tv = train[valid]
+        # --- the two dumbest possible baselines -------------------------
+        seasonal_naive_fc = tv[:, -h:]                       # repeat last year
+        flat_fc = np.tile(tv[:, -h:].sum(axis=1, keepdims=True) / h, (1, h))
+
+        denom = np.abs(a).sum()
+        if denom <= 0:
+            continue
+
+        def _row(name, pred, is_ours=False):
+            return {
+                "Fold": fold_name,
+                "Test year": f"FY{store['test_fy']}",
+                "Method": name,
+                "WAPE": float(np.abs(a - pred).sum() / denom),
+                "Total error %": float((pred.sum() - a.sum()) / a.sum() * 100),
+                "_ours": is_ours,
+            }
+
+        rows.append(_row("Repeat last year (seasonal naive)", seasonal_naive_fc))
+        rows.append(_row("Last year's total, spread evenly", flat_fc))
+        rows.append(_row("This forecasting system", delivered, is_ours=True))
+
+    out = pd.DataFrame(rows)
+    if out.empty:
+        return out
+    # How much better is ours than the best baseline, per fold?
+    for fold, g in out.groupby("Fold"):
+        best_base = g[~g["_ours"]]["WAPE"].min()
+        ours = g[g["_ours"]]["WAPE"].iloc[0]
+        out.loc[g.index, "_improvement"] = (best_base - ours) / best_base * 100
+    return out
+
+
+def accuracy_by_level(
+    fold_store: dict, selection: pd.DataFrame, panel: pd.DataFrame, cfg: dict,
+    fiscal_month_of: dict, items: pd.DataFrame,
+) -> pd.DataFrame:
+    """The same delivered forecast, scored at every level a decision is made at.
+
+    A single product-by-month error is the hardest measurement that exists and
+    is not the level at which any stock or budget decision is actually taken.
+    Aggregation cancels offsetting errors, so accuracy improves as the question
+    coarsens - that is a property of the mathematics, not presentation. Showing
+    the whole ladder, rather than one rung, lets each figure be matched to the
+    decision it supports.
+    """
+    from .features import seasonal_profile
+    from .forecast import apply_safeguards
+
+    if not fold_store or selection.empty:
+        return pd.DataFrame()
+
+    store = max(fold_store.values(), key=lambda s: s["test_fy"])
+    actual, train = store["actual"], store["train_values"]
+    h = actual.shape[1]
+    item_ids = panel.index.to_numpy()
+    sel_map = selection.set_index("item_id")["model"].to_dict()
+
+    chosen = np.full((len(item_ids), h), np.nan)
+    for i, iid in enumerate(item_ids):
+        m = sel_map.get(iid)
+        if m and m in store["preds"] and not np.isnan(store["preds"][m][i]).any():
+            chosen[i] = store["preds"][m][i]
+    valid = ~np.isnan(chosen).any(axis=1)
+    if valid.sum() == 0:
+        return pd.DataFrame()
+
+    tp = pd.DataFrame(train, index=item_ids, columns=panel.columns[: store["split"]])
+    seas = seasonal_profile(tp, fiscal_month_of)
+    hfm = np.array([fiscal_month_of[c] for c in tp.columns])
+    F, _, _ = apply_safeguards(chosen[valid].copy(), train[valid], hfm, seas, cfg)
+    A = actual[valid]
+    vid = item_ids[valid]
+
+    def wape(a, f):
+        d = np.abs(np.asarray(a, float)).sum()
+        return float(np.abs(np.asarray(a, float) - np.asarray(f, float)).sum() / d) if d else np.nan
+
+    def by_quarter(X):
+        keep = (X.shape[1] // 3) * 3
+        return X[:, :keep].reshape(X.shape[0], -1, 3).sum(axis=2)
+
+    rows = [
+        ("Individual product, individual month", wape(A, F),
+         "Reordering a single product for a single month"),
+        ("Individual product, quarter", wape(by_quarter(A), by_quarter(F)),
+         "Quarterly purchasing for a single product"),
+        ("Individual product, full year", wape(A.sum(1), F.sum(1)),
+         "Annual volume commitment for a single product"),
+    ]
+    if not items.empty and "category_1" in items.columns:
+        cat = items.set_index("item_id")["category_1"].reindex(vid).fillna("Unknown")
+        cA = pd.DataFrame(A, index=cat.to_numpy()).groupby(level=0).sum().to_numpy()
+        cF = pd.DataFrame(F, index=cat.to_numpy()).groupby(level=0).sum().to_numpy()
+        rows += [
+            ("Product category, month", wape(cA, cF),
+             "Monthly capacity and warehouse planning per category"),
+            ("Product category, quarter", wape(by_quarter(cA), by_quarter(cF)),
+             "Quarterly category budgets"),
+        ]
+    rows += [
+        ("Whole company, month", wape(A.sum(0), F.sum(0)),
+         "Monthly cash-flow and headcount planning"),
+        ("Whole company, full year", wape(A.sum(), F.sum()),
+         "The annual revenue budget"),
+    ]
+    out = pd.DataFrame(rows, columns=["Decision level", "WAPE", "Decision supported"])
+    out["Accuracy %"] = ((1 - out["WAPE"]).clip(lower=0) * 100).round(1)
+    out["Test year"] = f"FY{store['test_fy']}"
+    return out[["Decision level", "Decision supported", "WAPE", "Accuracy %", "Test year"]]
+
+
 def overall_accuracy(results: pd.DataFrame, selection: pd.DataFrame) -> pd.DataFrame:
     """Portfolio accuracy of the SELECTED models, per fold - the headline number."""
     if results.empty or selection.empty:
@@ -528,7 +689,9 @@ def overall_accuracy(results: pd.DataFrame, selection: pd.DataFrame) -> pd.DataF
     for fold, g in picked.groupby("fold", observed=True):
         act, fc = g["actual_total"].sum(), g["forecast_total"].sum()
         # Volume-weighted error across the portfolio.
-        num = (g["MAE"] * 12).sum()
+        # MAE is per month; scale by the fold's actual window length rather
+        # than a hardcoded 12, so a changed horizon cannot silently corrupt WAPE.
+        num = (g["MAE"] * g["n_months"]).sum()
         out.append({
             "Fold": fold,
             "Test year": f"FY{int(g['test_fy'].iloc[0])}",

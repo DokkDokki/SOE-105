@@ -63,16 +63,13 @@ def build_frontier(
         return pd.DataFrame()
 
     # Use the most recent fold - it is the most representative of current trading.
+    from .backtest import delivered_matrix
+
     store = max(fold_store.values(), key=lambda s: s["test_fy"])
     ids = panel.index.to_numpy()
-    sel_map = selection.set_index("item_id")["model"].to_dict()
     h = store["actual"].shape[1]
 
-    chosen = np.full((len(ids), h), np.nan)
-    for i, iid in enumerate(ids):
-        m = sel_map.get(iid)
-        if m and m in store["preds"] and not np.isnan(store["preds"][m][i]).any():
-            chosen[i] = store["preds"][m][i]
+    chosen = delivered_matrix(store["preds"], selection, ids, h, cfg)
     valid = ~np.isnan(chosen).any(axis=1)
     if valid.sum() == 0:
         return pd.DataFrame()

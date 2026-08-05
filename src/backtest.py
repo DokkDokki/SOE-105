@@ -454,6 +454,38 @@ def select_models(results: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     return out
 
 
+def delivered_matrix(preds: dict, selection: pd.DataFrame, item_ids: np.ndarray,
+                     h: int, cfg: dict | None = None) -> np.ndarray:
+    """The per-product forecast matrix the pipeline would actually deliver for
+    one back-test fold: each product's selected model, averaged with its
+    runner-up when the ensemble policy is enabled.
+
+    Every reporting path (as-delivered accuracy, benchmark, decision ladder,
+    intervals, inventory frontier, reconciliation test) reconstructs delivered
+    forecasts through THIS function, so reported accuracy cannot silently
+    diverge from what the forecast files contain.
+    """
+    sel = selection.set_index("item_id")
+    model_map = sel["model"].to_dict()
+    runner_map = (sel["runner_up"].to_dict()
+                  if "runner_up" in sel.columns else {})
+    blend = bool(cfg and cfg.get("models", {}).get("ensemble_top_k", 1) >= 2)
+
+    chosen = np.full((len(item_ids), h), np.nan)
+    for i, iid in enumerate(item_ids):
+        m = model_map.get(iid)
+        if not m or m not in preds or np.isnan(preds[m][i]).any():
+            continue
+        row = preds[m][i]
+        if blend and m != "zero":
+            r = runner_map.get(iid)
+            if (isinstance(r, str) and r and r != "zero" and r in preds
+                    and not np.isnan(preds[r][i]).any()):
+                row = (row + preds[r][i]) / 2.0
+        chosen[i] = row
+    return chosen
+
+
 def accuracy_as_delivered(
     fold_store: dict, selection: pd.DataFrame, panel: pd.DataFrame, cfg: dict,
     fiscal_month_of: dict,
@@ -471,18 +503,13 @@ def accuracy_as_delivered(
     if not fold_store or selection.empty:
         return pd.DataFrame()
 
-    sel_map = selection.set_index("item_id")["model"].to_dict()
     item_ids = panel.index.to_numpy()
     rows = []
 
     for fold_name, store in fold_store.items():
         preds, actual = store["preds"], store["actual"]
         h = actual.shape[1]
-        chosen = np.full((len(item_ids), h), np.nan)
-        for i, iid in enumerate(item_ids):
-            m = sel_map.get(iid)
-            if m and m in preds and not np.isnan(preds[m][i]).any():
-                chosen[i] = preds[m][i]
+        chosen = delivered_matrix(preds, selection, item_ids, h, cfg)
         valid = ~np.isnan(chosen).any(axis=1)
         if valid.sum() == 0:
             continue
@@ -536,7 +563,6 @@ def benchmark_comparison(
     if not fold_store or selection.empty:
         return pd.DataFrame()
 
-    sel_map = selection.set_index("item_id")["model"].to_dict()
     item_ids = panel.index.to_numpy()
     rows = []
 
@@ -548,11 +574,7 @@ def benchmark_comparison(
             continue
 
         # --- what this pipeline delivered -------------------------------
-        chosen = np.full((len(item_ids), h), np.nan)
-        for i, iid in enumerate(item_ids):
-            m = sel_map.get(iid)
-            if m and m in store["preds"] and not np.isnan(store["preds"][m][i]).any():
-                chosen[i] = store["preds"][m][i]
+        chosen = delivered_matrix(store["preds"], selection, item_ids, h, cfg)
         valid = ~np.isnan(chosen).any(axis=1)
         if valid.sum() == 0:
             continue
@@ -622,13 +644,7 @@ def accuracy_by_level(
     actual, train = store["actual"], store["train_values"]
     h = actual.shape[1]
     item_ids = panel.index.to_numpy()
-    sel_map = selection.set_index("item_id")["model"].to_dict()
-
-    chosen = np.full((len(item_ids), h), np.nan)
-    for i, iid in enumerate(item_ids):
-        m = sel_map.get(iid)
-        if m and m in store["preds"] and not np.isnan(store["preds"][m][i]).any():
-            chosen[i] = store["preds"][m][i]
+    chosen = delivered_matrix(store["preds"], selection, item_ids, h, cfg)
     valid = ~np.isnan(chosen).any(axis=1)
     if valid.sum() == 0:
         return pd.DataFrame()

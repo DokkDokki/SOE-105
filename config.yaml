@@ -137,6 +137,20 @@ models:
     - [[1, 1, 1], [1, 0, 1, 12]]
     - [[0, 1, 1], [0, 1, 1, 12]]
   recency_halflife_months: 18     # exponential recency weighting (structural break)
+
+  # --- Ensemble policy: OFF after a deployed test ----------------------------
+  # Averaging each product's top-2 models was tested twice.
+  #   1. In isolation (members chosen on the earlier fold only, scored on the
+  #      later): WAPE 0.816 -> 0.780, a -4.3% error reduction. Promising.
+  #   2. Deployed on top of the REAL two-fold selection: Fold 2 WAPE unchanged
+  #      (0.637), Fold 2 bias slightly better (-19.8% -> -18.3%), Fold 1
+  #      clearly worse (+46.7% -> +49.8%, WAPE 1.032 -> 1.043). Net: a wash.
+  # Why the gain vanished: the two-fold selection is already strong (0.637 vs
+  # the test's single-fold 0.816); it had absorbed the improvement blending
+  # provides to weaker selections. Kept as a one-line switch because the
+  # calculus changes wherever selection is weaker - e.g. a mid-year refresh
+  # where only one complete test fold exists. Set to 2 to enable.
+  ensemble_top_k: 1
   croston_alpha: 0.1
 
 safeguards:

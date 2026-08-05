@@ -1,7 +1,8 @@
 {
-  "run_at": "2026-08-04T21:15:47",
-  "runtime_seconds": 140.8,
+  "run_at": "2026-08-05T09:46:32",
+  "runtime_seconds": 334.4,
   "fiscal_start_month": 4,
+  "ensemble_top_k": 1,
   "fiscal_year_label": "Apr-Mar",
   "fiscal_detection_confidence": "high",
   "fiscal_detection_evidence": [
@@ -253,6 +254,7 @@
         ]
       ],
       "recency_halflife_months": 18,
+      "ensemble_top_k": 1,
       "croston_alpha": 0.1
     },
     "safeguards": {

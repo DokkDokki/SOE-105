@@ -1000,6 +1000,11 @@ elif page == "Accuracy & Performance Metrics":
         "appropriate: a more complex model was permitted to prevail only where it "
         "outperformed the simpler alternative by a defined margin."
     )
+    if meta.get("ensemble_top_k", 1) >= 2:
+        st.caption(
+            "Ensemble policy: the delivered forecast for each product is the average "
+            "of its two best methods (back-tested at a 4.3% error reduction). The "
+            "table above counts the primary method.")
 
     st.divider()
     st.subheader("Hierarchical Reconciliation")

@@ -41,7 +41,8 @@ def _annual_ratios(
     from .features import seasonal_profile
     from .forecast import apply_safeguards
 
-    sel_map = selection.set_index("item_id")["model"].to_dict()
+    from .backtest import delivered_matrix
+
     item_ids = panel.index.to_numpy()
     rows = []
 
@@ -50,11 +51,7 @@ def _annual_ratios(
             continue
         preds, actual = store["preds"], store["actual"]
         h = actual.shape[1]
-        chosen = np.full((len(item_ids), h), np.nan)
-        for i, iid in enumerate(item_ids):
-            m = sel_map.get(iid)
-            if m and m in preds and not np.isnan(preds[m][i]).any():
-                chosen[i] = preds[m][i]
+        chosen = delivered_matrix(preds, selection, item_ids, h, cfg)
         valid = ~np.isnan(chosen).any(axis=1)
         if valid.sum() == 0:
             continue

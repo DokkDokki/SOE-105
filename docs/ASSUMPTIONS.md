@@ -525,6 +525,27 @@ requirements and commercial conditions."*
 
 ---
 
+## 21. Event-oriented methods and ensembling: tested, not adopted
+
+The error diagnosis (docs/IMPROVEMENT_ROADMAP.md) showed demand is event-driven.
+Three event-oriented methods and one ensemble policy were therefore built and
+tested against the withheld FY2024 on 2026-08-04. None earned adoption; the full
+numbers are in docs/IDEAS.md sections A and B. In brief:
+
+| Candidate | Result |
+|---|---|
+| Base + spike decomposition | WAPE 0.699 vs delivered 0.635 — rejected |
+| Customer-renewal (churn-aware) | WAPE 0.727 vs delivered 0.635 — rejected as forecaster; the churn signal itself is real (+3.0% vs plain averaging) and becomes an ML-feature candidate |
+| Precursor analysis | Signal confirmed (1.31x lift) — validates the sales-input channel; not strong enough for statistical spike timing |
+| Ensemble top-2 | −4.3% in isolation, a wash when deployed over the two-fold selection; kept behind `models.ensemble_top_k`, default off |
+
+The consistent pattern: the existing per-product tournament is already near the
+ceiling of this dataset (hindsight-best selection would recover only ~10% of
+remaining error). Event-driven error requires event DATA — the sales pipeline,
+customer plans — not more elaborate models of the sales history.
+
+---
+
 ## 15. What could still go wrong
 
 1. **A market turning point in FY2025.** Nothing in the supplied data explains why

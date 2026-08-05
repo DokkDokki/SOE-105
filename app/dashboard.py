@@ -121,8 +121,10 @@ def base_chart(fig: go.Figure, height: int = 420, ytitle: str = "") -> go.Figure
         hovermode="x unified",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0,
                     font=dict(color=INK, size=13), bgcolor="rgba(255,255,255,0.85)"),
+        # No chart-level title: the surrounding tab/section already names the
+        # chart, and a title dict without text renders as the literal string
+        # "undefined" in Plotly.
         font=dict(size=13, color=INK),
-        title=dict(font=dict(color=INK)),
         hoverlabel=dict(font=dict(color=INK), bgcolor="white",
                         bordercolor=GRID),
     )

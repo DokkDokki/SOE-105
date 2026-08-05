@@ -35,3 +35,4 @@ data/uploads/
 # the repository; the pipeline then expects each user to supply their own files.
 # data/raw/*.xlsx
 # data/raw/*.csv
+presentation/

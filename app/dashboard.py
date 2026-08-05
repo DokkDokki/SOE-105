@@ -465,9 +465,9 @@ elif page == "Product Analysis":
     c4.metric("Confidence", str(row.get("confidence", "-")))
 
     if row.get("revenue_flag") == "PRICE_TBD":
-        warn("<b>Pricing to be confirmed.</b> No recorded price exists for this product; the quantity forecast remains valid and revenue is left blank.")
+        st.caption("**Pricing to be confirmed** — no recorded price exists; the quantity forecast remains valid and revenue is left blank.")
     elif row.get("revenue_flag") == "PRICE_VARIABLE_ESTIMATED":
-        warn("<b>Variable pricing.</b> Revenue applies the average price achieved on priced orders and should be regarded as an estimate.")
+        st.caption("**Variable pricing** — revenue applies the average achieved price and should be regarded as an estimate.")
 
     h = hist_item[hist_item["item_id"] == iid].sort_values("month")
     f = fc_all[fc_all["item_id"] == iid].sort_values("month")
@@ -540,7 +540,7 @@ elif page == "Product Analysis":
 # ==========================================================================
 elif page == "Customer Analysis":
     st.title("Customer Analysis")
-    warn("<b>Allocation, not a forecast.</b> Product forecasts are distributed by each customer's recent share \u2014 suitable for account planning, not commitments.")
+    st.caption("**Allocation, not a forecast** — product forecasts are distributed by each customer's recent share; for account planning, not commitments.")
 
     cf = bundle["customer_forecast"]
     if cf.empty:
@@ -670,10 +670,7 @@ elif page == "Inventory Planning":
                       f"{rec['service']:.1f}%")
             c3.metric("Average stock this implied", units(rec["stock"]))
             if not rec["achievable"]:
-                warn("The requested service level was not reached by any policy "
-                     "evaluated. The figures shown are the highest point on the "
-                     "curve; achieving more would require stocking beyond 3x the "
-                     "forecast, expediting, or supplier-side measures.")
+                st.caption("The requested service level was not reached by any policy evaluated; the figures shown are the highest point on the curve.")
             recdf = recommend_stock(
                 fc_all[["item_id", "item_code", "month_label",
                         "forecast_quantity"]].rename(
@@ -741,13 +738,7 @@ elif page == "Inventory Planning":
 
 elif page == "Accuracy & Performance Metrics":
     st.title("Accuracy and Performance Metrics")
-    plain(
-        f"Actual FY{FY} figures are not available, as the forecast period has not yet "
-        "occurred. Accuracy is therefore established by <b>withholding</b> a fiscal "
-        "year for which outcomes are known, generating a forecast for it using only "
-        "the preceding data, and comparing the result against the recorded outcome. "
-        "Two separate fiscal years were tested in this manner."
-    )
+    st.caption("Accuracy is established by withholding a fiscal year with known outcomes, forecasting it from the preceding data only, and comparing against what occurred. Two fiscal years were tested.")
 
     # ---- 1. LEAD WITH THE BENCHMARK: is this better than the obvious alternative?
     bm = bundle.get("benchmark", pd.DataFrame())
@@ -769,8 +760,7 @@ elif page == "Accuracy & Performance Metrics":
                     "WAPE": st.column_config.NumberColumn(format="%.3f"),
                     "Total error %": st.column_config.NumberColumn(format="%+.1f%%"),
                 })
-            good(f"This system reduced WAPE by <b>{imp:.1f}%</b> relative to the "
-                 f"best simple alternative in {ty}.")
+            st.caption(f"This system reduced WAPE by **{imp:.1f}%** relative to the best simple alternative in {ty}.")
 
     # ---- 1b. THE DECISION LADDER
     lv = bundle.get("accuracy_levels", pd.DataFrame())
@@ -791,7 +781,7 @@ elif page == "Accuracy & Performance Metrics":
     # ---- 2. CONTEXT BEFORE THE RAW FIGURES
     st.divider()
     st.subheader("Trading Conditions in the Test Periods")
-    warn("<b>Context.</b> Both test years were exceptional \u2014 a 43% contraction, then a 25% recovery \u2014 and neither turning point was predictable from prior data. These figures are a realistic worst case, not the error expected in stable trading.")
+    st.caption("Both test years were exceptional — a 43% contraction, then a 25% recovery, neither predictable from prior data — so these figures are a realistic worst case, not the error expected in stable trading.")
 
     # ---- 3. THE RAW FIGURES, PROPERLY FORMATTED
     if not ad.empty:
@@ -851,7 +841,7 @@ elif page == "Accuracy & Performance Metrics":
         ratios = iv.get("portfolio_ratio_by_fold", {})
         if ratios:
             txt = ", ".join(f"{k}: {v:.2f}x" for k, v in ratios.items())
-            warn("Per-product intervals must not be summed; the company-wide interval is derived from aggregate outcomes in the withheld years.")
+            st.caption("Per-product intervals must not be summed; the company-wide interval is derived from aggregate outcomes in the withheld years.")
         st.caption("Eight of ten products in each segment fell between the lower and upper multipliers in back-testing.")
 
     st.divider()
@@ -859,13 +849,7 @@ elif page == "Accuracy & Performance Metrics":
     abt = bundle.get("accuracy_by_tier", pd.DataFrame())
     if not abt.empty:
         st.dataframe(abt, use_container_width=True, hide_index=True)
-        plain(
-            "Segment A accounts for approximately 80% of total volume and is "
-            "therefore where accuracy is most material. Segments C and D are "
-            "inherently unpredictable at the individual product level; they are "
-            "included to ensure completeness of the plan rather than because their "
-            "individual figures are precise."
-        )
+        st.caption("Segment A carries ~80% of volume and is where accuracy is most material; segments C and D are included for completeness rather than per-product precision.")
 
     st.divider()
     st.subheader("Model Selection Distribution")
@@ -890,7 +874,7 @@ elif page == "Accuracy & Performance Metrics":
     st.divider()
     st.subheader("Hierarchical Reconciliation")
     rec = meta.get("reconciliation", {})
-    (good if rec.get("enabled") else plain)(rec.get("reason", "Not tested."))
+    st.caption(rec.get("reason", "Not tested."))
 
     rc = meta.get("revenue_method_check") or {}
     if rc:
@@ -1185,7 +1169,7 @@ automatically — you will see exactly how each column was matched before anythi
 # ==========================================================================
 elif page == "Downloads & Exports":
     st.title("Downloads and Exports")
-    plain("Each file listed below was produced by the most recent processing run.")
+    st.caption("Each file below was produced by the most recent processing run.")
 
     files = [
         (f"FY{FY}_forecast_by_product_month.csv",

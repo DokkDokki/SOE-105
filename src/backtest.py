@@ -95,6 +95,28 @@ def _auto_weights(n: int) -> list[float]:
     return [r / total for r in raw]
 
 
+def winsorise_for_fit(values: np.ndarray, cfg: dict) -> np.ndarray:
+    """Clip each product's history at its own upper quantile - FITTING ONLY.
+
+    Large orders are real demand and are never deleted: scoring, safeguards
+    and reporting always use the untrimmed series. But a single 5,000-unit
+    month inside a 3-month moving-average window becomes a 1,600-unit month
+    for the next quarter's forecast, so the series handed to the models has
+    its extreme spikes capped. The quantile is taken over the product's
+    NON-ZERO months (a plain quantile of a sparse series is zero, which
+    would erase the product entirely).
+    """
+    q = cfg.get("cleaning", {}).get("winsorise_quantile", 0)
+    if not q or q >= 1.0:
+        return values
+    out = values.copy()
+    for i in range(out.shape[0]):
+        nz = out[i][out[i] > 0]
+        if len(nz) >= 4:
+            out[i] = np.minimum(out[i], np.quantile(nz, q))
+    return out
+
+
 def build_folds(panel: pd.DataFrame, cfg: dict, fy_of: dict) -> list[Fold]:
     """Turn the configured (or generated) fold definitions into index ranges."""
     months = list(panel.columns)
@@ -269,9 +291,12 @@ def run_backtest(
         hist_fms = all_fms[:split]
         future_fms = [int(all_fms[i]) for i in test_idx]
 
+        fit_vals = winsorise_for_fit(train_vals, cfg)
         preds = _predict_all_models(
-            train_vals, tiers, registry, cfg, hist_fms, future_fms, h, seas_prof,
-            n_jobs, panel.index, train_panel, items, fiscal_month_of, progress,
+            fit_vals, tiers, registry, cfg, hist_fms, future_fms, h, seas_prof,
+            n_jobs, panel.index,
+            pd.DataFrame(fit_vals, index=panel.index, columns=train_panel.columns),
+            items, fiscal_month_of, progress,
         )
         # Dormant products are forecast as zero by definition.
         zero_arr = np.full((values.shape[0], h), np.nan)

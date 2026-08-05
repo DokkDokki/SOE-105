@@ -59,6 +59,15 @@ better model selection. These four ideas attack the event structure directly:
 | E6 | Croston alpha tuning | Config knob already exposed (`models.croston_alpha`) |
 | E7 | Churn feature for the global ML model: "months since the dominant customer's last order" | The churn signal is real (+3.0% vs plain MA12 in the A2 test); the customer axis carries information the product axis lacks |
 | E8 | Precursor feature: same-pair order activity in the prior 1–3 months | 1.31x lift measured in the A3 test |
+| E9 | Order-count and customer-count monthly features for the global ML model | The order-line data carries frequency/breadth signals the quantity sum discards |
+| E10 | Top-down category-share model for sparse products (category forecast x recent product share) | Different from the rejected reconciliation: allocation, not scaling |
+
+## H. Adopted after testing (2026-08-05)
+
+| Idea | Evidence | Effect |
+|---|---|---|
+| **TSB candidate** (Teunter-Syntetos-Babai) in the tournament | Adopted by the tournament for 64 products, mostly Segment B; designed for demand fading to obsolescence, which Croston structurally cannot represent | Part of the both-fold WAPE improvement below |
+| **Winsorise-for-fitting** (p99 of each product's non-zero months, fitting only) | Also fixed a documentation-integrity gap: config and ASSUMPTIONS §11 claimed it while the code did not do it | Combined with TSB: WAPE 1.032 → 1.027 (FY2023 fold) and 0.637 → 0.636 (FY2024 fold); headline 176,720 → 176,044 units |
 
 ## F. Tested and REJECTED — do not repeat
 

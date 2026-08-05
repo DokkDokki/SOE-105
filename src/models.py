@@ -187,6 +187,33 @@ def croston_sba(y, h, ctx=None):
     return _nonneg(np.repeat((1 - alpha / 2.0) * z / p, h))
 
 
+def tsb(y, h, ctx=None):
+    """Teunter-Syntetos-Babai: Croston for products drifting to obsolescence.
+
+    Croston only updates when a sale happens, so a product that has stopped
+    selling keeps its last positive forecast for ever. TSB updates the demand
+    PROBABILITY every month, including the silent ones, letting the forecast
+    decay towards zero as a product goes quiet - the right behaviour for a
+    catalogue with 447 discontinued items still trailing off.
+    """
+    y = _clean(y)
+    nz = np.flatnonzero(y > 0)
+    if len(nz) == 0:
+        return np.zeros(h)
+    alpha = (ctx or {}).get("croston_alpha", 0.1)   # probability smoothing
+    beta = 0.1                                       # size smoothing
+    start = nz[0]
+    prob = 1.0
+    size = float(y[start])
+    for t in range(start + 1, len(y)):
+        if y[t] > 0:
+            prob += alpha * (1.0 - prob)
+            size += beta * (float(y[t]) - size)
+        else:
+            prob += alpha * (0.0 - prob)
+    return _nonneg(np.repeat(prob * size, h))
+
+
 def demand_rate(y, h, ctx=None):
     """Simple average demand per month over the product's life so far."""
     y = _clean(y)
@@ -304,6 +331,7 @@ BASELINE_MODELS: dict[str, Callable] = {
 INTERMITTENT_MODELS: dict[str, Callable] = {
     "croston": croston,
     "croston_sba": croston_sba,
+    "tsb": tsb,
     "demand_rate": demand_rate,
 }
 
@@ -379,6 +407,7 @@ PLAIN_ENGLISH_NAMES = {
     "drift": "Straight-line trend",
     "croston": "Croston (for irregular demand)",
     "croston_sba": "Croston/SBA (for irregular demand)",
+    "tsb": "TSB (irregular demand that may be fading out)",
     "demand_rate": "Average demand rate",
     "ses": "Exponential smoothing",
     "holt_damped": "Exponential smoothing with damped trend",

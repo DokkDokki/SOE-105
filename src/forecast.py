@@ -13,7 +13,8 @@ import pandas as pd
 from joblib import Parallel, delayed
 
 from . import models as MOD
-from .backtest import _run_model_on_products, delivered_matrix
+from .backtest import (_run_model_on_products, delivered_matrix,
+                       winsorise_for_fit)
 from .features import TIER_DORMANT, seasonal_profile
 from .global_ml import GlobalMLForecaster
 
@@ -417,9 +418,11 @@ def build_forecast(
     model_names = sel["model"].fillna("moving_average_6").to_numpy()
 
     seas_prof = seasonal_profile(panel, fiscal_month_of)
+    fit_values = winsorise_for_fit(values, cfg)
+    fit_panel = pd.DataFrame(fit_values, index=panel.index, columns=panel.columns)
     fc, failed = _forecast_with_registry(
-        values, model_names, registry, cfg, all_fms, future_fms, h, seas_prof,
-        n_jobs, panel, items, fiscal_month_of, progress,
+        fit_values, model_names, registry, cfg, all_fms, future_fms, h, seas_prof,
+        n_jobs, fit_panel, items, fiscal_month_of, progress,
     )
 
     # ------------------------------------------------------ ensemble policy
@@ -433,8 +436,8 @@ def build_forecast(
         if blendable.any():
             runner_names = np.where(blendable, runners, "zero")
             fc2, failed2 = _forecast_with_registry(
-                values, runner_names, registry, cfg, all_fms, future_fms, h,
-                seas_prof, n_jobs, panel, items, fiscal_month_of, progress)
+                fit_values, runner_names, registry, cfg, all_fms, future_fms, h,
+                seas_prof, n_jobs, fit_panel, items, fiscal_month_of, progress)
             ok = blendable & ~failed2
             fc[ok] = (fc[ok] + fc2[ok]) / 2.0
 

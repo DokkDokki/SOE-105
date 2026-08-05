@@ -1,6 +1,6 @@
 {
-  "run_at": "2026-08-05T10:14:05",
-  "runtime_seconds": 262.2,
+  "run_at": "2026-08-05T10:25:03",
+  "runtime_seconds": 253.3,
   "fiscal_start_month": 4,
   "ensemble_top_k": 1,
   "fiscal_year_label": "Apr-Mar",
@@ -41,9 +41,9 @@
   "rows_out": 271948,
   "n_products": 5706,
   "n_customers": 2159,
-  "n_products_forecast_nonzero": 2742,
-  "total_forecast_quantity": 176720.0,
-  "total_forecast_revenue": 1916919123.0,
+  "n_products_forecast_nonzero": 2741,
+  "total_forecast_quantity": 176044.0,
+  "total_forecast_revenue": 1907349876.0,
   "n_price_tbd": 5,
   "n_price_variable": 1075,
   "realised_to_list_ratio": 0.8846936468460321,
@@ -63,61 +63,61 @@
     "vip_share_of_quantity": 0.6272477597126116,
     "average_price_multiplier": 1.0
   },
-  "revenue_if_vip_discount_37pct": 1471663588.370106,
+  "revenue_if_vip_discount_37pct": 1463635211.9876766,
   "intervals": {
     "overall_low_multiplier": 0.0,
-    "overall_median_multiplier": 0.8969727459573347,
-    "overall_high_multiplier": 4.073731884057983,
+    "overall_median_multiplier": 0.90625,
+    "overall_high_multiplier": 4.028645534951157,
     "quantiles": [
       0.1,
       0.9
     ],
     "portfolio_ratio_by_fold": {
-      "Fold 1": 0.6713263553467602,
-      "Fold 2": 1.2230535404586906
+      "Fold 1": 0.6718894840168285,
+      "Fold 2": 1.2264976385291027
     },
-    "portfolio_low_multiplier": 0.6713263553467602,
-    "portfolio_high_multiplier": 1.2230535404586906,
+    "portfolio_low_multiplier": 0.6718894840168285,
+    "portfolio_high_multiplier": 1.2264976385291027,
     "portfolio_basis": "The company-wide range comes from how the TOTAL actually landed in each hidden back-test year, not from adding up the per-product ranges. Per-product ranges must never be summed - that assumes every product has its worst year simultaneously.",
     "n_observations": 2343,
     "measurement_basis": "out-of-sample (models selected without Fold 2, measured on Fold 2 only)"
   },
-  "forecast_quantity_low": 118636.79351687946,
-  "forecast_quantity_high": 216138.02166985982,
-  "forecast_revenue_low": 1286878328.338098,
-  "forecast_revenue_high": 2344494720.1581182,
-  "forecast_quantity_low_if_summed": 78223.47,
-  "forecast_quantity_high_if_summed": 517098.16,
+  "forecast_quantity_low": 118282.11232425855,
+  "forecast_quantity_high": 215917.55027721735,
+  "forecast_revenue_low": 1281528324.0252018,
+  "forecast_revenue_high": 2339360118.762777,
+  "forecast_quantity_low_if_summed": 78578.24,
+  "forecast_quantity_high_if_summed": 516687.62000000005,
   "reconciliation": {
     "enabled": false,
     "judged_on": "combined score (accuracy + total-level bias)",
-    "score_bottom_up": 1.1573068074836113,
-    "score_reconciled": 1.46334409085709,
-    "wape_bottom_up": 0.8294774912719756,
-    "wape_reconciled": 1.0100265396693844,
-    "total_error_bottom_up_pct": 32.78293162116355,
-    "total_error_reconciled_pct": 45.33175511877058,
+    "score_bottom_up": 1.153911082954911,
+    "score_reconciled": 1.4637207435317066,
+    "wape_bottom_up": 0.8262294718869491,
+    "wape_reconciled": 1.0090909398829686,
+    "total_error_bottom_up_pct": 32.7681611067962,
+    "total_error_reconciled_pct": 45.462980364873815,
     "folds": [
       {
         "fold": "Fold 1",
-        "wape_bottom_up": 1.0235304307465687,
-        "wape_reconciled": 1.3213613982253611,
-        "total_error_bottom_up_pct": 45.522155484523076,
-        "total_error_reconciled_pct": 86.38794256860905,
-        "combined_bottom_up": 1.4787519855917994,
-        "combined_reconciled": 2.1852408239114514
+        "wape_bottom_up": 1.0177122813485608,
+        "wape_reconciled": 1.320484072203933,
+        "total_error_bottom_up_pct": 45.276497201685665,
+        "total_error_reconciled_pct": 86.58587708690455,
+        "combined_bottom_up": 1.4704772533654173,
+        "combined_reconciled": 2.1863428430729783
       },
       {
         "fold": "Fold 2",
-        "wape_bottom_up": 0.6354245517973826,
-        "wape_reconciled": 0.6986916811134077,
-        "total_error_bottom_up_pct": 20.043707757804025,
-        "total_error_reconciled_pct": 4.275567668932107,
-        "combined_bottom_up": 0.8358616293754229,
-        "combined_reconciled": 0.7414473578027287
+        "wape_bottom_up": 0.6347466624253373,
+        "wape_reconciled": 0.6976978075620041,
+        "total_error_bottom_up_pct": 20.25982501190674,
+        "total_error_reconciled_pct": 4.34008364284308,
+        "combined_bottom_up": 0.8373449125444047,
+        "combined_reconciled": 0.7410986439904349
       }
     ],
-    "reason": "Scaling product forecasts to Product Category 1 totals did not improve the combined score (accuracy + total-level bias) (1.157 as-is vs 1.463 scaled), so product forecasts are used exactly as the per-product models produced them."
+    "reason": "Scaling product forecasts to Product Category 1 totals did not improve the combined score (accuracy + total-level bias) (1.154 as-is vs 1.464 scaled), so product forecasts are used exactly as the per-product models produced them."
   },
   "tier_counts": {
     "D - No recent sales": 2485,
@@ -126,23 +126,24 @@
     "A - Regular seller": 932
   },
   "model_counts": {
-    "No forecast (no recent sales)": 3393,
-    "Average of last 6 months": 634,
-    "Average of last 3 months": 256,
-    "Croston/SBA (for irregular demand)": 229,
-    "Straight-line trend": 195,
-    "Average of last 12 months": 181,
-    "Machine learning (learns from all products in this dataset together)": 178,
-    "Recent level x category seasonal pattern": 113,
-    "Average demand rate": 95,
-    "Exponential smoothing with damped trend": 86,
-    "Croston (for irregular demand)": 74,
-    "Long-run average": 70,
+    "No forecast (no recent sales)": 3394,
+    "Average of last 6 months": 619,
+    "Average of last 3 months": 253,
+    "Croston/SBA (for irregular demand)": 222,
+    "Straight-line trend": 197,
+    "Average of last 12 months": 179,
+    "Machine learning (learns from all products in this dataset together)": 171,
+    "Recent level x category seasonal pattern": 110,
+    "Average demand rate": 80,
+    "Exponential smoothing with damped trend": 78,
+    "Long-run average": 78,
+    "Croston (for irregular demand)": 68,
+    "TSB (irregular demand that may be fading out)": 64,
     "Same month last year": 55,
-    "Recency-weighted average": 51,
-    "Exponential smoothing": 50,
-    "Same month, averaged over 2 years": 38,
-    "Repeat last month": 8
+    "Exponential smoothing": 47,
+    "Same month, averaged over 2 years": 42,
+    "Recency-weighted average": 42,
+    "Repeat last month": 7
   },
   "config_used": {
     "fiscal": {

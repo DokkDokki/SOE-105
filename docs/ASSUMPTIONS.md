@@ -289,8 +289,15 @@ pipeline switches it on automatically.
 Quantity is heavily right-skewed (median 1, p99 = 30, max 6,000). Large orders are
 **real demand** and deleting them would understate what the company must supply.
 
-They are winsorised at the 99th percentile for model **fitting** only; all scoring
-and all reported figures use untrimmed actuals.
+They are winsorised at the 99th percentile of each product's own non-zero months
+for model **fitting** only; all scoring, safeguards and reported figures use
+untrimmed actuals.
+
+*(Correction note: an earlier version of this document claimed the winsorisation
+while the code did not yet perform it. It was implemented and A/B-tested on
+2026-08-05 together with the TSB candidate: back-test WAPE improved on both folds,
+1.032 → 1.027 and 0.637 → 0.636. Controlled by `cleaning.winsorise_quantile`;
+set to 0 to disable.)*
 
 ---
 

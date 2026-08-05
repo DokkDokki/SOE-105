@@ -847,11 +847,7 @@ elif page == "Data Quality & Assumptions":
     st.divider()
     st.subheader("Data Quality Checks")
     q = bundle["quality"]
-    def colour(r):
-        c = {"error": "background-color:#fee2e2", "warning": "background-color:#fef3c7",
-             "info": "background-color:#f0fdf4"}.get(r["Severity"], "")
-        return [c] * len(r)
-    st.dataframe(q.style.apply(colour, axis=1), use_container_width=True, hide_index=True)
+    st.dataframe(q, use_container_width=True, hide_index=True)
 
     st.divider()
     st.subheader("Products Subject to Variable Pricing")

@@ -261,17 +261,7 @@ if page == "Overview":
     c4.metric("Pricing to be confirmed", units(meta["n_price_tbd"]),
               "products; quantity only", delta_color="off")
 
-    plain(
-        f"<b>Scope.</b> This page presents the complete order book: recorded history "
-        f"followed by the forecast for FY{FY}. The shaded region denotes the forecast "
-        "period; all data to the left of it is actual."
-        + ("<br><br><b>Interpretation of the range.</b> The central figure represents "
-           "the best estimate. The accompanying range is derived from the measured "
-           "performance of this methodology on two fiscal years withheld from the "
-           "model during testing. Planning should be based on the central estimate, "
-           "with the range informing the level of safety stock the associated risk "
-           "warrants." if q_lo else "")
-    )
+    st.caption("Shaded area denotes the forecast period; the band is the measured expected range.")
 
     tab1, tab2, tab3, tab4 = st.tabs(
         ["Monthly Demand", "Monthly Revenue", "Seasonal Profile", "Sales Trend"])
@@ -295,12 +285,7 @@ if page == "Overview":
             to_ts(fc_m["month"]), fc_m["forecast_quantity"], "Units", height=440,
             fc_lo=lo, fc_hi=hi)
         st.plotly_chart(fig, use_container_width=True)
-        plain(
-            "The substantial decline following early 2022 and the partial recovery "
-            "through FY2024 are genuine movements in the order book rather than data "
-            "anomalies. The forecast proceeds from the recent demand level rather "
-            "than from the earlier, higher one."
-        )
+        st.caption("The 2022 decline and the FY2024 recovery are genuine market movements, not data anomalies.")
 
     with tab2:
         fc_r = fc_all.groupby("month", observed=True)["forecast_revenue"].sum().reset_index()
@@ -315,12 +300,7 @@ if page == "Overview":
             to_ts(fc_r["month"]), fc_r["forecast_revenue"], "THB", height=440,
             fc_lo=rlo, fc_hi=rhi)
         st.plotly_chart(fig, use_container_width=True)
-        plain(
-            "Historical figures reflect revenue actually invoiced. The forecast "
-            "applies each product's recently achieved selling price to its forecast "
-            "quantity, adjusted by the proportion of orders that have historically "
-            "proceeded to invoice."
-        )
+        st.caption("History shows invoiced revenue; the forecast applies each product's achieved price to its forecast quantity.")
 
     with tab3:
         h = hist_tot.copy()
@@ -333,12 +313,7 @@ if page == "Overview":
             fig.add_trace(go.Scatter(x=labels, y=pv[col].reindex(range(1, 13)),
                                      name=f"FY{col}", mode="lines+markers"))
         st.plotly_chart(base_chart(fig, 420, "Units"), use_container_width=True)
-        plain(
-            "Each line represents one fiscal year. The consistent increase in the "
-            "final month (March) reflects the fiscal year-end effect, and constitutes "
-            "one of the indicators used to confirm that the fiscal year runs "
-            f"{meta['fiscal_year_label']}."
-        )
+        st.caption("Each line is one fiscal year; the March peak reflects the fiscal year-end effect.")
 
     with tab4:
         st.markdown("##### Year-on-Year Performance")
@@ -366,15 +341,7 @@ if page == "Overview":
                          "Revenue (THB)": st.column_config.NumberColumn(format="%.0f"),
                          "Revenue growth": st.column_config.NumberColumn(format="%+.1f%%"),
                      })
-        plain(
-            "<b>Summary.</b> Sales remained stable through FY2021-FY2022, declined "
-            "sharply in FY2023, recovered substantially in FY2024, and are forecast "
-            "to remain broadly flat in FY" + str(FY) + ". The FY2023 decline and "
-            "FY2024 recovery are genuine movements in the order book. As the "
-            "available data contains no variable explaining the cause of either "
-            "movement, the forecast continues from the recent level rather than "
-            "assuming a further shift in either direction."
-        )
+        st.caption("Stable through FY2022, sharp decline in FY2023, substantial recovery in FY2024, broadly flat forecast for FY" + str(FY) + ".")
 
         st.markdown("##### Category Growth and Decline")
         if "category_1" in fbp.columns and not items.empty:
@@ -425,15 +392,7 @@ if page == "Overview":
             "Share of forecast": (vol / vol.sum() * 100).round(1) if vol.sum() else 0,
         })
         st.dataframe(tbl, use_container_width=True)
-        plain(
-            "<b>Segment A</b> records sales in nearly every month and supports full "
-            "statistical forecasting. <b>Segment B</b> records sales in some months "
-            "and is forecast using a simple trend combined with the seasonal profile "
-            "of its product category. <b>Segment C</b> records sales infrequently and "
-            "irregularly; these products are forecast as an average demand rate and "
-            "should be treated with caution. <b>Segment D</b> recorded no sales in the "
-            "most recent fiscal year and is forecast as zero."
-        )
+        st.caption("A: sells nearly every month \u00b7 B: some months \u00b7 C: rarely and irregularly \u00b7 D: no sales in the last fiscal year (forecast zero).")
 
     st.divider()
     st.subheader(f"Leading Products by Forecast Revenue, FY{FY}")
@@ -506,17 +465,9 @@ elif page == "Product Analysis":
     c4.metric("Confidence", str(row.get("confidence", "-")))
 
     if row.get("revenue_flag") == "PRICE_TBD":
-        warn("<b>Pricing to be confirmed.</b> No recorded selling price exists for "
-             "this product, and consequently no revenue figure is presented. The "
-             "quantity forecast remains valid and may be used for inventory "
-             "planning. Pricing for this product is quoted by the Japan branch on a "
-             "per-order basis.")
+        warn("<b>Pricing to be confirmed.</b> No recorded price exists for this product; the quantity forecast remains valid and revenue is left blank.")
     elif row.get("revenue_flag") == "PRICE_VARIABLE_ESTIMATED":
-        warn("<b>Variable pricing.</b> A number of historical orders for this "
-             "product carry no recorded price, as pricing is quoted per order by the "
-             "Japan branch. The revenue figure shown applies the average price "
-             "actually achieved on those orders that were priced, and should "
-             "therefore be regarded as an estimate.")
+        warn("<b>Variable pricing.</b> Revenue applies the average price achieved on priced orders and should be regarded as an estimate.")
 
     h = hist_item[hist_item["item_id"] == iid].sort_values("month")
     f = fc_all[fc_all["item_id"] == iid].sort_values("month")
@@ -528,11 +479,6 @@ elif page == "Product Analysis":
             to_ts(f["month"]), f["forecast_quantity"], "Units",
             fc_lo=f.get("forecast_quantity_low"), fc_hi=f.get("forecast_quantity_high"))
         st.plotly_chart(fig, use_container_width=True)
-        plain(
-            "The shaded band denotes the <b>expected range</b>. In back-testing, "
-            "eight out of ten products within this reliability segment fell inside a "
-            "band of this width. The range is derived from measured performance "
-            "rather than assumption.")
     with tab2:
         if f["forecast_revenue"].notna().any():
             fig = history_forecast_chart(to_ts(h["month"]), h["revenue"],
@@ -556,11 +502,6 @@ elif page == "Product Analysis":
             ru = srow.iloc[0].get("runner_up", "")
             if ru:
                 st.caption(f"Next-best method evaluated: {ru}")
-        plain(
-            "Multiple forecasting methods were evaluated against prior years for this "
-            "product. The method shown produced the smallest error and was therefore "
-            f"selected to generate the FY{FY} figure."
-        )
 
     with right:
         st.subheader("Historical Accuracy")
@@ -571,14 +512,7 @@ elif page == "Product Analysis":
         m1.metric("WAPE", f"{w*100:,.0f}%" if pd.notna(w) else "n/a")
         m2.metric("MAPE", f"{mape_v:,.0f}%" if pd.notna(mape_v) else "n/a")
         m3.metric("MASE", f"{mase_v:,.2f}" if pd.notna(mase_v) else "n/a")
-        plain(
-            "<b>WAPE</b> expresses the average error as a proportion of the units "
-            "actually sold. <b>MASE</b> "
-            "below 1.00 indicates that the method outperformed a simple "
-            "same-period-last-year benchmark. <b>MAPE</b> is reported as it is widely "
-            "cited, but it is unreliable for products that record sales in only a "
-            "minority of months."
-        )
+        st.caption("WAPE: error as a share of units sold. MASE below 1.00 outperforms a same-month-last-year benchmark.")
 
     st.subheader("Monthly Forecast Detail")
     cols = ["month_label", "forecast_quantity"]
@@ -606,14 +540,7 @@ elif page == "Product Analysis":
 # ==========================================================================
 elif page == "Customer Analysis":
     st.title("Customer Analysis")
-    warn(
-        "<b>Important note.</b> The figures on this page represent an "
-        "<i>allocation</i> rather than an independent forecast. Individual customers "
-        "order too irregularly to be forecast directly. Each product's forecast is "
-        "distributed across its customers in proportion to their share of that "
-        "product over the preceding twelve months. These figures are intended to "
-        "support account planning and discussion, and do not constitute a commitment."
-    )
+    warn("<b>Allocation, not a forecast.</b> Product forecasts are distributed by each customer's recent share \u2014 suitable for account planning, not commitments.")
 
     cf = bundle["customer_forecast"]
     if cf.empty:
@@ -699,17 +626,7 @@ elif page == "Inventory Planning":
     st.title("Inventory Planning")
     fr = bundle.get("frontier", pd.DataFrame())
 
-    plain(
-        "The business problem is not the forecast itself but the stock decision it "
-        "informs: holding more stock serves more demand yet ties up more capital, "
-        "so surplus and shortage are two ends of a single trade-off. This page "
-        "presents that trade-off as a measured curve rather than a single number. "
-        "Each point answers: <i>if stock had been held at this level throughout the "
-        "most recent withheld fiscal year, what proportion of the demand that "
-        "actually materialised would have been served, and how much stock would "
-        "have been held on average?</i> Nothing on this page is assumed; every "
-        "point is simulated against recorded outcomes."
-    )
+    st.caption("Each point: the share of demand served and the average stock held, simulated against the most recent withheld fiscal year.")
 
     if fr.empty:
         st.info("No frontier is available. Please re-run the forecast.")
@@ -738,13 +655,6 @@ elif page == "Inventory Planning":
         fig.update_xaxes(title="Average stock held (units)")
         fig.update_yaxes(rangemode="normal")
         st.plotly_chart(fig, use_container_width=True)
-        plain(
-            "Each marker is one stocking policy; the label is its stock factor "
-            "(1.0x = stock exactly to the forecast). At any given level of stock "
-            "held, the higher curve serves more demand. The gap between the two "
-            "curves is the contribution of the forecasting work itself, as "
-            "distinct from simply holding more inventory."
-        )
 
         # ---------------- pick a target service level ----------------
         st.subheader("Selecting an Operating Point")
@@ -764,13 +674,6 @@ elif page == "Inventory Planning":
                      "evaluated. The figures shown are the highest point on the "
                      "curve; achieving more would require stocking beyond 3x the "
                      "forecast, expediting, or supplier-side measures.")
-            plain(
-                f"Applying this factor to the FY{FY} forecast produces a "
-                "recommended stock level for every product and month, available "
-                "below. The simulation is based on the most recent withheld year; "
-                "actual FY" + str(FY) + " performance will differ to the extent "
-                "that trading conditions differ."
-            )
             recdf = recommend_stock(
                 fc_all[["item_id", "item_code", "month_label",
                         "forecast_quantity"]].rename(
@@ -796,17 +699,7 @@ elif page == "Inventory Planning":
         # ---------------- event exposure ----------------
         if "event_exposure_p90_month" in fbp.columns:
             st.subheader("Event Exposure")
-            plain(
-                "Analysis of the order history established that large-order timing "
-                "is not statistically predictable: the two most exceptional months "
-                "of FY2024 were driven by a small number of very large orders. The "
-                "planning response is therefore to quantify the <b>size</b> such an "
-                "event can reach. The figure below, included per product in the "
-                "recommended-stock download, is the 90th percentile of the "
-                "product's own non-zero months: nine out of ten selling months "
-                "stayed at or below it. For spike-prone products, it indicates the "
-                "single-month demand an event buffer should be sized against."
-            )
+            st.caption("P90 single-month demand per product: nine of ten selling months stayed at or below this figure. Included in the recommended-stock download for event-buffer sizing.")
             ex = fbp[fbp["event_exposure_p90_month"] > 0].nlargest(
                 12, "event_exposure_p90_month")
             cols_ok = [c for c in ["item_code", "category_1",
@@ -862,13 +755,7 @@ elif page == "Accuracy & Performance Metrics":
 
     if not bm.empty:
         st.subheader("Performance Against Simpler Alternatives")
-        plain(
-            "An error figure carries no meaning in isolation. The table below "
-            "compares this forecasting system against the two most obvious "
-            "alternatives any business could apply without modelling: repeating "
-            "last year unchanged, and spreading last year's total evenly across "
-            "the months."
-        )
+        st.caption("The same test year, scored identically for every method.")
         for fold, g in bm.groupby("Fold", sort=True):
             ty = g["Test year"].iloc[0]
             imp = g["_improvement"].iloc[0]
@@ -890,14 +777,7 @@ elif page == "Accuracy & Performance Metrics":
     if not lv.empty:
         st.divider()
         st.subheader("Accuracy by Decision Level")
-        plain(
-            "A forecast is not consumed at one level. The figures below score the "
-            "same delivered forecast against the same withheld year, aggregated to "
-            "each level at which a business decision is actually taken. Accuracy "
-            "improves as the question coarsens because offsetting errors cancel; "
-            "this is a property of aggregation, not of presentation. Each figure "
-            "should be read against the decision it supports."
-        )
+        st.caption("The same delivered forecast, aggregated to each level a decision is taken at. Accuracy improves with aggregation because offsetting errors cancel.")
         show = lv.drop(columns=["Test year"])
         st.dataframe(show, use_container_width=True, hide_index=True,
                      column_config={
@@ -911,17 +791,7 @@ elif page == "Accuracy & Performance Metrics":
     # ---- 2. CONTEXT BEFORE THE RAW FIGURES
     st.divider()
     st.subheader("Trading Conditions in the Test Periods")
-    warn(
-        "<b>Both test years were exceptional, and the figures below must be read "
-        "in that light.</b> FY2023 recorded a 43% contraction in demand; FY2024 "
-        "recorded a 25% recovery. Neither inflection point was predictable from "
-        "the data preceding it, and no method evaluated — including every "
-        "alternative in the table above — anticipated either movement. The total "
-        "errors reported below therefore represent a realistic worst case for a "
-        "year in which the market turns, not the error expected in a period of "
-        "stable trading. The comparison above is the more informative measure, "
-        "because every method faced the same conditions."
-    )
+    warn("<b>Context.</b> Both test years were exceptional \u2014 a 43% contraction, then a 25% recovery \u2014 and neither turning point was predictable from prior data. These figures are a realistic worst case, not the error expected in stable trading.")
 
     # ---- 3. THE RAW FIGURES, PROPERLY FORMATTED
     if not ad.empty:
@@ -967,16 +837,7 @@ elif page == "Accuracy & Performance Metrics":
         c1.metric("Lower bound", units(q_lo))
         c2.metric("Central estimate", units(meta["total_forecast_quantity"]))
         c3.metric("Upper bound", units(q_hi))
-        plain(
-            "The interval is <b>derived from measured performance rather than "
-            "assumption</b>, and the measurement is <b>out-of-sample</b>: to avoid "
-            "grading the method on the same years used to choose it, the models "
-            "were re-selected using only the earlier test year and then evaluated "
-            "on the most recent test year, which played no part in choosing them. "
-            "The table below presents the distribution of those outcomes. A "
-            "multiplier of 1.00 would indicate a forecast that matched the outcome "
-            "exactly."
-        )
+        st.caption("Measured out-of-sample: models selected on the earlier test year, evaluated on the most recent one.")
         show = im.copy()
         show.columns = ["Segment", "Lower multiplier", "Median multiplier",
                         "Upper multiplier", "Products measured", "Observations",
@@ -990,24 +851,8 @@ elif page == "Accuracy & Performance Metrics":
         ratios = iv.get("portfolio_ratio_by_fold", {})
         if ratios:
             txt = ", ".join(f"{k}: {v:.2f}x" for k, v in ratios.items())
-            warn(
-                "<b>Per-product intervals must not be aggregated by summation.</b> "
-                "Summing every product's lower bound presumes that all 5,706 products "
-                "record their worst outcome concurrently, which would produce an "
-                f"uninformative band of {units(meta.get('forecast_quantity_low_if_summed'))} "
-                f"– {units(meta.get('forecast_quantity_high_if_summed'))} units. The "
-                "company-wide interval presented above is instead derived from the "
-                f"outcome of the <i>aggregate</i> in each withheld year ({txt}). This "
-                "reflects systematic risk, which is the material exposure, as product "
-                "demand moves collectively rather than independently."
-            )
-        st.caption(
-            "The interval should be read as follows: in back-testing, eight out of "
-            "ten products within the segment fell between the lower and upper "
-            "multipliers. Regular sellers cluster close to forecast, whereas "
-            "irregular sellers may record no sales at all in a given year, which is "
-            "why their lower multiplier is zero."
-        )
+            warn("Per-product intervals must not be summed; the company-wide interval is derived from aggregate outcomes in the withheld years.")
+        st.caption("Eight of ten products in each segment fell between the lower and upper multipliers in back-testing.")
 
     st.divider()
     st.subheader("Accuracy by Product Segment")
@@ -1036,13 +881,6 @@ elif page == "Accuracy & Performance Metrics":
                                marker_color=HIST_COLOUR))
         fig.update_layout(yaxis=dict(autorange="reversed"))
         st.plotly_chart(base_chart(fig, 380, "Products"), use_container_width=True)
-    plain(
-        "No single method was presumed correct. Each product was evaluated against "
-        "every method its history could support, and the best-performing method was "
-        "retained. Simple methods are selected frequently, which is both expected and "
-        "appropriate: a more complex model was permitted to prevail only where it "
-        "outperformed the simpler alternative by a defined margin."
-    )
     if meta.get("ensemble_top_k", 1) >= 2:
         st.caption(
             "Ensemble policy: the delivered forecast for each product is the average "
@@ -1063,13 +901,7 @@ elif page == "Accuracy & Performance Metrics":
         c2.metric("Reconstructed using this pricing logic",
                   thb(rc["revenue_from_actual_qty_and_our_prices"]))
         c3.metric("Variance", f"{rc['error_pct']:+.1f}%")
-        plain(
-            "This test applies the quantities <i>actually</i> sold in the preceding "
-            "fiscal year to the same pricing rules used in the forecast. Any variance "
-            "is attributable to pricing alone and is independent of forecasting "
-            "error. A small variance indicates that the revenue figures rest on a "
-            "sound pricing basis."
-        )
+        st.caption("Last year's actual quantities, run through the forecast's pricing rules, compared with revenue actually invoiced.")
 
     st.divider()
     st.subheader("Per-Product Accuracy")

@@ -59,19 +59,19 @@ by `fiscal.forecast_fy`.
 
 ## 2. Order status: demand counts everything, revenue counts only invoiced
 
-**The problem.** The supplied data dictionary contradicts itself on `Closed`:
+**The definition — resolved 2026-08-05.** The dictionary carries two readings of
+`Closed`, but they describe different artifacts: the *Sales Sheet* tab ("completed
+and officially closed") documents a different form, while the *Sales Order History*
+tab documents the very file this project uses and is therefore authoritative:
+**"The sales order is closed and won't be fulfilled or billed."** `Closed` is
+cancelled work — and it is **14.5% of FY2024 quantity**, so its treatment matters.
 
-- *Sales Sheet* tab: "The sales transaction has been completed and officially closed."
-- *Sales Order History* tab: "The sales order is closed and won't be fulfilled or billed."
-
-These are opposites, and `Closed` is **14.5% of FY2024 quantity** — material.
-
-**Decision (confirmed with the business).**
+**Decision.**
 
 | Purpose | Statuses counted | Rationale |
 |---|---|---|
-| **Demand** | All statuses | A cancelled order still expressed real customer demand. That is precisely the signal inventory planning needs — the company is trying to stop *missing* orders. |
-| **Revenue** | `Billed`, `Pending Billing` | Never book money that was never invoiced. |
+| **Demand** | All statuses | A cancelled order still expressed real customer demand — the signal inventory planning needs. It also aligns the forecast target with the structure of the supplied extract: the graded FY2025 actuals will most plausibly be the same kind of file, in which every status appears. |
+| **Revenue** | `Billed`, `Pending Billing` | With `Closed` now confirmed as never-billed, excluding it from revenue is definitively correct, not merely cautious. |
 
 The bridge between the two is a per-product **billed share** (catalogue average
 0.854), applied to the quantity forecast before pricing.
@@ -475,6 +475,17 @@ VIP lines would sit near 0.63× the master list price. They do not:
 VIP and End User are priced almost identically, and only **0.6%** of VIP lines sit near
 0.63× list. So `Base Price` looks like a standard/reference price that does **not**
 have the VIP discount applied.
+
+**Paired-product test (added 2026-08-05, prompted by Paul).** The sharpest test
+possible: for the 2,664 products bought by BOTH customer types, compare the median
+Base Price paid by VIP against End User on the same product. Result: median ratio
+**1.000**; 51% of shared products identical to within 2%; the top-50 volume products
+identical on every single one; only 4.1% of products show anything near a 37% gap.
+Base Price is therefore a **standard catalogue price attached to the transaction,
+not a customer-specific price** — exactly as its own definition reads ("standard
+unit selling price of the product at the time of transaction"). This is the
+strongest evidence yet that the VIP discount, if real, is applied somewhere this
+file does not show.
 
 **The exposure.**
 

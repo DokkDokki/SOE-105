@@ -60,11 +60,11 @@ Most of the raw material already exists and can be assembled rather than rewritt
 These do not block the deliverables above; each has a documented default and a
 one-line switch in `config.yaml`.
 
-| Question | Current default | Switch |
+| Question | Status | Switch |
 |---|---|---|
-| Is `Base Price` the invoiced amount, or before the VIP 37% discount? (**฿461m**) | Not applied | `pricing.vip_discount` |
-| What does order status `Closed` mean? (14.5% of volume) | Demand yes, revenue no | `cleaning.revenue_statuses` |
-| Is Apr 2025 – Mar 2026 called FY2025 or FY2026? | FY2025 | `fiscal.forecast_fy` |
+| Is `Base Price` before the VIP 37% discount? (**฿461m**) | OPEN — paired-product test shows Base Price is customer-independent, strengthening "discount not embedded" | `pricing.vip_discount` |
+| Order status `Closed` | RESOLVED — authoritative sheet: "won't be fulfilled or billed". Demand keeps all statuses (expressed demand + extract alignment); revenue excludes Closed | `cleaning.revenue_statuses` |
+| Grading definition of FY2025 actuals | CLOSED per Paul — do not ask; aligned by construction to the supplied extract's structure (all-status quantity, billed revenue) | — |
 
 ## Next working session: event-oriented approaches
 

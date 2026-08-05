@@ -84,8 +84,9 @@ better model selection. These four ideas attack the event structure directly:
 
 ## G. Open business questions (change numbers via one config line)
 
-| Question | Exposure | Switch |
-|---|---|---|
-| Is Base Price invoiced or pre-VIP-discount? | **฿461m / 22.5% of revenue** | `pricing.vip_discount` |
-| What does order status `Closed` mean? | 14.5% of volume | `cleaning.revenue_statuses` |
-| FY label convention (FY2025 vs FY2026) | Label only | `fiscal.forecast_fy` |
+| Question | Status |
+|---|---|
+| Is Base Price pre-VIP-discount? (**฿461m**) | OPEN — paired test 2026-08-05: Base Price is customer-independent (median VIP/EndUser ratio 1.000 on shared products), so the discount is not embedded here |
+| Order status `Closed` | RESOLVED — "won't be fulfilled or billed" (authoritative sheet). Demand: all statuses; revenue: excludes Closed |
+| Grading definition of FY2025 actuals | CLOSED per Paul — not asked; aligned to the supplied extract's structure |
+| FY label convention | Label only — `fiscal.forecast_fy` |

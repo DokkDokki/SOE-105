@@ -280,6 +280,21 @@ def run_pipeline(
         agg = agg.merge(items[["item_id"] + cols], on="item_id", how="left")
     prof_cols = ["active_months", "demand_pattern", "confidence", "last_sale_month"]
     agg = agg.merge(res.profile[prof_cols].reset_index(), on="item_id", how="left")
+
+    # Event exposure: the size a single month can plausibly reach, from the
+    # product's own record. Spike TIMING was shown to be statistically
+    # unpredictable (docs/IDEAS.md A1-A3), so the honest planning aid is the
+    # spike SIZE: the 90th percentile of the product's non-zero months (its
+    # maximum where history is too short for a quantile). Used on the
+    # Inventory Planning page to size event buffers for spike-prone products.
+    vals = panel.to_numpy(dtype=float)
+    expo = np.zeros(len(panel))
+    for _i, _r in enumerate(vals):
+        _nz = _r[_r > 0]
+        expo[_i] = (np.quantile(_nz, 0.9) if len(_nz) >= 4
+                    else (_nz.max() if len(_nz) else 0.0))
+    agg["event_exposure_p90_month"] = agg["item_id"].map(
+        dict(zip(panel.index, np.round(expo, 1)))).fillna(0.0)
     res.forecast_by_product = agg
 
     # --------------------------------------------- 9b. prediction intervals

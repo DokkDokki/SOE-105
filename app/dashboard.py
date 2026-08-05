@@ -571,7 +571,7 @@ elif page == "Product Analysis":
         m3.metric("MASE", f"{mase_v:,.2f}" if pd.notna(mase_v) else "n/a")
         plain(
             "<b>WAPE</b> expresses the average error as a proportion of the units "
-            "actually sold; lower values indicate better performance. <b>MASE</b> "
+            "actually sold. <b>MASE</b> "
             "below 1.00 indicates that the method outperformed a simple "
             "same-period-last-year benchmark. <b>MAPE</b> is reported as it is widely "
             "cited, but it is unreliable for products that record sales in only a "
@@ -778,11 +778,53 @@ elif page == "Inventory Planning":
                 "item_id": "Item Internal ID", "item_code": "Item Code",
                 "month": "Month", "forecast_quantity": "Forecast quantity",
                 "recommended_stock": f"Recommended stock ({rec['factor']:.2f}x)"})
+            if "event_exposure_p90_month" in fbp.columns:
+                recdf = recdf.merge(
+                    fbp[["item_id", "event_exposure_p90_month"]].rename(columns={
+                        "item_id": "Item Internal ID",
+                        "event_exposure_p90_month":
+                            "Event exposure (P90 single-month demand, units)"}),
+                    on="Item Internal ID", how="left")
             st.download_button(
                 f"Download recommended stock levels ({rec['factor']:.2f}x, CSV)",
                 recdf.to_csv(index=False).encode("utf-8-sig"),
                 file_name=f"FY{FY}_recommended_stock_{rec['factor']:.2f}x.csv",
                 mime="text/csv")
+
+        # ---------------- event exposure ----------------
+        if "event_exposure_p90_month" in fbp.columns:
+            st.subheader("Event Exposure")
+            plain(
+                "Analysis of the order history established that large-order timing "
+                "is not statistically predictable: the two most exceptional months "
+                "of FY2024 were driven by a small number of very large orders. The "
+                "planning response is therefore to quantify the <b>size</b> such an "
+                "event can reach. The figure below, included per product in the "
+                "recommended-stock download, is the 90th percentile of the "
+                "product's own non-zero months: nine out of ten selling months "
+                "stayed at or below it. For spike-prone products, it indicates the "
+                "single-month demand an event buffer should be sized against."
+            )
+            ex = fbp[fbp["event_exposure_p90_month"] > 0].nlargest(
+                12, "event_exposure_p90_month")
+            cols_ok = [c for c in ["item_code", "category_1",
+                                   "forecast_quantity",
+                                   "event_exposure_p90_month"] if c in ex.columns]
+            show_ex = ex[cols_ok].rename(columns={
+                "item_code": "Product", "category_1": "Category",
+                "forecast_quantity": "Annual forecast (units)",
+                "event_exposure_p90_month": "P90 single-month demand (units)"})
+            st.dataframe(show_ex, use_container_width=True, hide_index=True,
+                         column_config={
+                             "Annual forecast (units)":
+                                 st.column_config.NumberColumn(format="%.0f"),
+                             "P90 single-month demand (units)":
+                                 st.column_config.NumberColumn(format="%.0f"),
+                         })
+            st.caption("The twelve products with the largest single-month event "
+                       "exposure. A product whose P90 month approaches or exceeds "
+                       "its annual forecast is event-dominated: its demand arrives "
+                       "in occasional large orders rather than a steady flow.")
 
         # ---------------- the underlying numbers ----------------
         st.subheader("Simulation Detail")
@@ -823,7 +865,7 @@ elif page == "Accuracy & Performance Metrics":
             "compares this forecasting system against the two most obvious "
             "alternatives any business could apply without modelling: repeating "
             "last year unchanged, and spreading last year's total evenly across "
-            "the months. Lower WAPE indicates better performance."
+            "the months."
         )
         for fold, g in bm.groupby("Fold", sort=True):
             ty = g["Test year"].iloc[0]
@@ -835,8 +877,7 @@ elif page == "Accuracy & Performance Metrics":
             st.dataframe(
                 show, use_container_width=True, hide_index=True,
                 column_config={
-                    "WAPE": st.column_config.NumberColumn(
-                        "WAPE (lower is better)", format="%.3f"),
+                    "WAPE": st.column_config.NumberColumn(format="%.3f"),
                     "Total error %": st.column_config.NumberColumn(format="%+.1f%%"),
                 })
             good(f"This system reduced WAPE by <b>{imp:.1f}%</b> relative to the "

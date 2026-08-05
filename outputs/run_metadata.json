@@ -1,6 +1,6 @@
 {
-  "run_at": "2026-08-05T09:46:32",
-  "runtime_seconds": 334.4,
+  "run_at": "2026-08-05T10:14:05",
+  "runtime_seconds": 262.2,
   "fiscal_start_month": 4,
   "ensemble_top_k": 1,
   "fiscal_year_label": "Apr-Mar",

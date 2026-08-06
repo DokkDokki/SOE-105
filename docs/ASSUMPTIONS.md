@@ -99,6 +99,24 @@ Controlled by `cleaning.demand_statuses` / `cleaning.revenue_statuses`.
 **Reversible:** set `cleaning.drop_exact_duplicates: true`. The pipeline reports
 the impact either way.
 
+**Robustness test (2026-08-06).** A team member independently prepared cleaned
+source files whose only substantive change was removing these 6,865 duplicate
+lines (plus cosmetic header trims). We ran the full pipeline on both versions:
+
+| | Original (kept) | Duplicates removed |
+|---|---|---|
+| FY2025 forecast, units | 175,969 | 172,916 (−1.7%) |
+| FY2025 forecast, revenue | ฿1,907.3m | ฿1,880.3m (−1.4%) |
+| WAPE, FY2024 fold (as delivered) | 0.636 | 0.624 |
+| Bias, FY2024 fold | −20.0% | −19.8% |
+
+The forecast is robust to this cleaning choice (≤2% movement everywhere).
+We kept the originals because (a) the forensic evidence above says the lines
+are genuine demand, and (b) the grading actuals come from the source ERP,
+which would include them. The cleaned files' marginally lower WAPE is measured
+against their own reduced actuals, so it is not evidence the removal is more
+correct.
+
 ---
 
 ## 4. Price = 0 is never treated as ฿0 revenue

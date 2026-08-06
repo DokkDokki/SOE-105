@@ -12,8 +12,12 @@ fiscal:
   # classic fiscal year-end push. See docs/ASSUMPTIONS.md.
   start_month: 4
   # FY label = the calendar year in which the fiscal year STARTS.
-  # FY2024 = Apr 2024 - Mar 2025.  Forecast target FY2025 = Apr 2025 - Mar 2026.
-  forecast_fy: 2025
+  # FY2024 = Apr 2024 - Mar 2025.  FY2025 = Apr 2025 - Mar 2026.
+  # null = automatic: forecast the year AFTER the last year present in the
+  # data (so uploading newer files moves the target year - and every page
+  # header - forward with no code or config change). Set a number only to
+  # pin a specific target year.
+  forecast_fy: null
   horizon: 12
 
 cleaning:

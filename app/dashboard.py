@@ -872,19 +872,26 @@ elif page == "Data Quality & Assumptions":
                         if c in t.columns]], use_container_width=True, hide_index=True)
 
     st.divider()
-    st.subheader("Outstanding Query: Treatment of the VIP Discount")
+    st.subheader("Treatment of the VIP Discount")
     v = meta.get("vip_discount_question", {})
     if v:
         c1, c2, c3 = st.columns(3)
         c1.metric("VIP customers", f"{v.get('vip_customers', 0)}")
         c2.metric("Share of total demand",
                   f"{v.get('vip_share_of_quantity', 0)*100:.1f}%")
-        sens = meta.get("revenue_if_vip_discount_37pct")
-        if sens:
-            gap = meta["total_forecast_revenue"] - sens
-            c3.metric("Revenue exposure", thb(gap),
-                      f"{gap/meta['total_forecast_revenue']*100:.1f}% of forecast",
+        if v.get("applied"):
+            undisc = meta.get("revenue_without_vip_discount")
+            c3.metric("Discount applied to VIP share",
+                      f"{v.get('vip_discount', 0)*100:.0f}%",
+                      f"revenue before discount {thb(undisc)}" if undisc else None,
                       delta_color="off")
+        else:
+            sens = meta.get("revenue_if_vip_discount_37pct")
+            if sens:
+                gap = meta["total_forecast_revenue"] - sens
+                c3.metric("Revenue exposure", thb(gap),
+                          f"{gap/meta['total_forecast_revenue']*100:.1f}% of forecast",
+                          delta_color="off")
 
     st.divider()
     st.subheader("Forecast Safeguards")

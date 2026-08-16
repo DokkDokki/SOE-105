@@ -131,7 +131,7 @@ a third fold exists).
 
 | Question | Status |
 |---|---|
-| Is Base Price pre-VIP-discount? (**฿461m**) | OPEN — paired test 2026-08-05: Base Price is customer-independent (median VIP/EndUser ratio 1.000 on shared products), so the discount is not embedded here |
+| Is Base Price pre-VIP-discount? (**~฿440m**) | DECIDED 2026-08-16 — discount APPLIED (`pricing.vip_discount: 0.37`): dictionary states it, paired test shows it is not embedded in Base Price. Undiscounted figure still reported alongside; flip to 0.0 if Mitsubishi says Base Price is the invoiced amount |
 | Order status `Closed` | RESOLVED — "won't be fulfilled or billed" (authoritative sheet). Demand: all statuses; revenue: excludes Closed |
 | Grading definition of FY2025 actuals | CLOSED per Paul — not asked; aligned to the supplied extract's structure |
 | FY label convention | Label only — `fiscal.forecast_fy` |

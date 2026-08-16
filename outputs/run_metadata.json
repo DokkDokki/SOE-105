@@ -1,6 +1,6 @@
 {
-  "run_at": "2026-08-05T10:25:03",
-  "runtime_seconds": 253.3,
+  "run_at": "2026-08-16T20:25:19",
+  "runtime_seconds": 329.0,
   "fiscal_start_month": 4,
   "ensemble_top_k": 1,
   "fiscal_year_label": "Apr-Mar",
@@ -43,7 +43,7 @@
   "n_customers": 2159,
   "n_products_forecast_nonzero": 2741,
   "total_forecast_quantity": 176044.0,
-  "total_forecast_revenue": 1907349876.0,
+  "total_forecast_revenue": 1463635243.0,
   "n_price_tbd": 5,
   "n_price_variable": 1075,
   "realised_to_list_ratio": 0.8846936468460321,
@@ -52,18 +52,19 @@
   "revenue_method_check": {
     "test_fiscal_year": 2024,
     "actual_invoiced_revenue": 2024835276.24,
-    "revenue_from_actual_qty_and_our_prices": 2071471937.7175603,
-    "error": 46636661.47756028,
-    "error_pct": 2.3032323678280546
+    "revenue_from_actual_qty_and_our_prices": 1609299028.1130362,
+    "error": -415536248.12696385,
+    "error_pct": -20.521977911141008
   },
   "vip_discount_question": {
-    "applied": false,
-    "vip_discount": 0.0,
+    "applied": true,
+    "vip_discount": 0.37,
     "vip_customers": 10,
     "vip_share_of_quantity": 0.6272477597126116,
-    "average_price_multiplier": 1.0
+    "average_price_multiplier": 0.8016549657934132
   },
-  "revenue_if_vip_discount_37pct": 1463635211.9876766,
+  "revenue_without_vip_discount": 1907349922.287315,
+  "revenue_if_vip_discount_37pct": 1463635243.0,
   "intervals": {
     "overall_low_multiplier": 0.0,
     "overall_median_multiplier": 0.90625,
@@ -84,8 +85,8 @@
   },
   "forecast_quantity_low": 118282.11232425855,
   "forecast_quantity_high": 215917.55027721735,
-  "forecast_revenue_low": 1281528324.0252018,
-  "forecast_revenue_high": 2339360118.762777,
+  "forecast_revenue_low": 983401128.2081153,
+  "forecast_revenue_high": 1795145169.2074692,
   "forecast_quantity_low_if_summed": 78578.24,
   "forecast_quantity_high_if_summed": 516687.62000000005,
   "reconciliation": {
@@ -148,7 +149,7 @@
   "config_used": {
     "fiscal": {
       "start_month": 4,
-      "forecast_fy": 2025,
+      "forecast_fy": null,
       "horizon": 12
     },
     "cleaning": {
@@ -273,7 +274,7 @@
     "pricing": {
       "realised_price_window_months": 12,
       "fallback_realised_to_list_ratio": 0.91,
-      "vip_discount": 0.0
+      "vip_discount": 0.37
     },
     "output": {
       "round_quantities": false,

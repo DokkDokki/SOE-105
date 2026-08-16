@@ -238,22 +238,16 @@ pricing:
   # this is only the fallback if it cannot be computed.
   fallback_realised_to_list_ratio: 0.91
 
-  # --- VIP customer discount: OPEN QUESTION FOR MITSUBISHI ------------------
-  # The data dictionary's Customer sheet states "VIP: 37% discount from List
-  # Price". But in the transaction data VIP and End User lines are priced
-  # almost identically against the master list price (median 0.891 vs 0.910),
-  # and only 0.6% of VIP lines sit near 0.63x list. So `Base Price` looks like
-  # a standard/reference price that does NOT already include the VIP discount.
-  #
-  # This is material: 10 VIP customers carry 62% of all quantity and 62% of
-  # gross revenue. If their invoices really are 37% below Base Price, forecast
-  # revenue is overstated by roughly 23%.
-  #
-  # It cannot be settled from the data - there is no invoice-amount column to
-  # check against - so nothing is applied by default. Once Mitsubishi confirms,
-  # set this to 0.37 and re-run; the discount is applied per product in
-  # proportion to that product's VIP sales share.
-  vip_discount: 0.0
+  # --- VIP customer discount: APPLIED (team decision 2026-08-16) -------------
+  # The data dictionary states "VIP: 37% discount from List Price". The paired
+  # -product test (docs/ASSUMPTIONS.md s.19) shows `Base Price` is a customer-
+  # independent catalogue price, i.e. the discount is NOT already inside it, so
+  # VIP invoices are taken to be 37% below the recorded price. Applied per
+  # product in proportion to that product's VIP sales share. 10 VIP customers
+  # carry ~62% of quantity, so this lowers forecast revenue by roughly 23%.
+  # Set to 0.0 to forecast in undiscounted (as-recorded) terms instead; the
+  # dashboard always shows both figures.
+  vip_discount: 0.37
 
 output:
   # Monthly quantities are EXPECTED demand, so they are kept fractional.

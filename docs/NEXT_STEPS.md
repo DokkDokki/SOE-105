@@ -62,7 +62,7 @@ one-line switch in `config.yaml`.
 
 | Question | Status | Switch |
 |---|---|---|
-| Is `Base Price` before the VIP 37% discount? (**฿461m**) | OPEN — paired-product test shows Base Price is customer-independent, strengthening "discount not embedded" | `pricing.vip_discount` |
+| Is `Base Price` before the VIP 37% discount? (**~฿440m**) | DECIDED 2026-08-16 — discount applied (0.37); revenue stated net of it, undiscounted figure reported alongside. Flip to 0.0 if Mitsubishi confirms Base Price is the invoiced amount | `pricing.vip_discount` |
 | Order status `Closed` | RESOLVED — authoritative sheet: "won't be fulfilled or billed". Demand keeps all statuses (expressed demand + extract alignment); revenue excludes Closed | `cleaning.revenue_statuses` |
 | Grading definition of FY2025 actuals | CLOSED per Paul — do not ask; aligned by construction to the supplied extract's structure (all-status quantity, billed revenue) | — |
 

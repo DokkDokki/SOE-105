@@ -185,7 +185,9 @@ def vip_discount_adjustment(
 ) -> tuple[pd.Series, dict]:
     """Per-product price multiplier for the VIP customer discount.
 
-    OPEN QUESTION, deliberately left OFF by default.
+    APPLIED at 0.37 since 2026-08-16 (team decision: follow the dictionary).
+    Set `pricing.vip_discount: 0.0` to forecast in as-recorded terms instead.
+    Background of the question, kept for the record:
 
     The data dictionary's Customer sheet states "VIP: 37% discount from List
     Price". But in the transaction data, VIP and End User order lines carry
@@ -199,9 +201,8 @@ def vip_discount_adjustment(
     Base Price, forecast revenue is overstated by roughly 23%.
 
     It cannot be settled from the data alone - there is no invoice-amount column
-    to check against - so the pipeline does NOT silently apply a discount it is
-    not sure about. It reports the sensitivity and offers a one-line switch.
-    Set `pricing.vip_discount: 0.37` once Mitsubishi confirms.
+    to check against - so the pipeline always reports both the discounted and
+    the undiscounted revenue, whichever setting is active.
 
     Returns (per-item multiplier, summary dict).
     """

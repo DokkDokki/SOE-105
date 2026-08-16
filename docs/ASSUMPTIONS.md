@@ -470,10 +470,19 @@ one only wins where it earns it.
 
 ---
 
-## 19. OPEN QUESTION FOR MITSUBISHI — the VIP 37% discount
+## 19. The VIP 37% discount — APPLIED (team decision 2026-08-16)
 
-**This is the largest single unresolved risk in the revenue forecast. It needs an
-answer from Mitsubishi; it cannot be settled from the data.**
+**Decision.** The discount is applied (`pricing.vip_discount: 0.37`): the data
+dictionary states it, and the paired-product test below shows it is not already
+inside `Base Price`, so VIP invoices are taken to be 37% below the recorded
+price. Forecast revenue is therefore stated **net of the VIP discount**; the
+undiscounted figure is always shown alongside it on the Data Quality page and in
+`run_metadata.json` (`revenue_without_vip_discount`). The remaining
+uncertainty is which basis the FY2025 grading actuals will use — if they arrive
+as quantity × Base Price, the undiscounted figure is the comparable one. Setting
+the switch to `0.0` restores that basis in one line.
+
+The analysis that led here is kept in full below.
 
 **What the dictionary says.** The `Customer` sheet defines Customer Type as:
 *"VIP: 37% discount from List Price"*. The main Data Dictionary sheet repeats it:
@@ -520,14 +529,16 @@ selection* logic (recent vs historical vs list), **not** whether `Base Price` eq
 the amount actually invoiced. There is no invoice-amount column in the data, so no
 internal check can resolve this.
 
-**Decision: nothing applied by default.** The pipeline reports the transaction data as
-recorded and publishes the sensitivity rather than silently applying a 22.5% haircut
-based on our reading of an ambiguous remark. Once Mitsubishi confirms, set
-`pricing.vip_discount: 0.37` in `config.yaml` and re-run — the discount is then applied
-per product in proportion to that product's VIP sales share.
+**Earlier default (2026-08-04 to 2026-08-16): nothing applied**, with the sensitivity
+published. Superseded by the team decision above: applied at 37%, per product in
+proportion to that product's VIP sales share. (The exposure table above uses the
+figures of the run current at the time it was written; the live numbers are in
+`run_metadata.json`.)
 
-**The question to ask:** *"Is the Base Price column in the sales export the price
-actually invoiced, or a reference price before the VIP 37% discount is applied?"*
+**Question still worth asking Mitsubishi if the chance arises:** *"Is the Base Price
+column in the sales export the price actually invoiced, or a reference price before
+the VIP 37% discount is applied?"* — a "yes, invoiced" answer would mean flipping the
+switch back to `0.0`.
 
 **Note:** the quantity/demand forecast is completely unaffected. This is a revenue
 question only.

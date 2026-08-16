@@ -232,10 +232,10 @@ def run_pipeline(
     default_rate = float(
         sales.loc[sales["is_revenue"], "quantity"].sum() / max(sales["quantity"].sum(), 1)
     )
-    # VIP discount question - see config.yaml pricing.vip_discount
+    # VIP discount - see config.yaml pricing.vip_discount
     vip_mult, vip_summary = PR.vip_discount_adjustment(sales, customers, cfg)
-    # Always compute the "what if it IS 37%" number so the exposure is visible
-    # even while the discount is switched off.
+    # Always compute BOTH the undiscounted and the 37%-discounted revenue so
+    # the dashboard can show the other figure whichever setting is active.
     _sens_cfg = {"pricing": {**cfg.get("pricing", {}), "vip_discount": 0.37}}
     vip_sens_mult, _ = PR.vip_discount_adjustment(sales, customers, _sens_cfg)
     if vip_summary.get("applied"):
@@ -372,6 +372,11 @@ def run_pipeline(
     # ------------------------------------------------------------ 13. meta
     _q_total = float(agg["forecast_quantity"].sum())
     _r_total = float(agg["forecast_revenue"].sum(skipna=True))
+    # Revenue with the VIP discount backed out (== forecast_revenue when the
+    # discount is switched off). Multiplier is >= 0.63 so division is safe.
+    _applied_mult = (agg["item_id"].map(vip_mult).fillna(1.0)
+                     if vip_summary.get("applied") else 1.0)
+    _undiscounted_rev = agg["forecast_revenue"].fillna(0) / _applied_mult
     res.meta = {
         "run_at": pd.Timestamp.now().isoformat(timespec="seconds"),
         "runtime_seconds": round(time.time() - t0, 1),
@@ -403,9 +408,9 @@ def run_pipeline(
         "default_billing_rate": default_rate,
         "revenue_method_check": revenue_check,
         "vip_discount_question": vip_summary,
+        "revenue_without_vip_discount": float(_undiscounted_rev.sum()),
         "revenue_if_vip_discount_37pct": float(
-            (agg["item_id"].map(vip_sens_mult).fillna(1.0)
-             * agg["forecast_revenue"].fillna(0)).sum()),
+            (agg["item_id"].map(vip_sens_mult).fillna(1.0) * _undiscounted_rev).sum()),
         "intervals": interval_summary,
         # Company-wide range comes from portfolio-level evidence. Summing the
         # per-product ranges would assume every product has its worst year at

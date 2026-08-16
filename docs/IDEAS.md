@@ -62,6 +62,51 @@ better model selection. These four ideas attack the event structure directly:
 | E9 | Order-count and customer-count monthly features for the global ML model | The order-line data carries frequency/breadth signals the quantity sum discards |
 | E10 | Top-down category-share model for sparse products (category forecast x recent product share) | Different from the rejected reconciliation: allocation, not scaling |
 
+## I. XGBoost + feature engineering (professor's advice) — TESTED 2026-08-16, isolated
+
+Prompted by the course professor: (1) XGBoost is the popular choice for
+forecasting; (2) feature engineering matters — derive new columns from the
+data. Tested in the scratchpad (`ml_experiment.py`) without touching the
+pipeline. Note the pipeline already had a gradient-boosting model of the same
+family (`global_ml`, sklearn HistGradientBoosting); the question was whether a
+different library or richer features would improve it.
+
+**19 engineered features tested** (all computed from data available at the
+origin): target-month same-month-last-year / two-years-ago, own and category
+seasonal index at the target month, horizon; spike ratio, spike count,
+coefficient of variation, trend ratios; **customer side** — distinct customers
+last 12m, top-customer share, VIP quantity share, order lines and quantity per
+line (E7/E9 backlog items); production status and zero-list-price flags.
+
+| Variant | Standalone WAPE F1 / F2 | Tournament delivered F1 / F2 | Honest OOS (select F1 → measure F2) |
+|---|---|---|---|
+| current global_ml (HGB, 30 feats) | 1.877 / 0.755 | 1.045 / 0.683 | 0.810 |
+| **HGB + engineered feats** | 1.635 / 0.726 | **1.031 / 0.673** | **0.804** |
+| XGBoost, current feats | 1.753 / 0.745 | 1.032 / 0.682 | 0.805 |
+| XGBoost + engineered feats | **1.486 / 0.719** | 1.025 / 0.681 | 0.813 (worse) |
+| LightGBM + engineered feats | 1.505 / 0.736 | 1.028 / 0.682 | 0.806 |
+
+(Tournament numbers here come from the experiment's own re-scoring function,
+so they are comparable across rows but not identical to the pipeline's
+as-delivered figures.)
+
+**Findings.** (a) Feature engineering is the lever, not the library: the
+engineered features improve every algorithm by 8–20% standalone; swapping HGB
+for XGBoost on the same features gains ~2–7%. (b) As a standalone model
+XGBoost+features is best — but in the tournament it is the only variant that
+gets *worse* on the honest out-of-sample test (0.813 vs 0.810), i.e. its extra
+wins on the selection folds do not carry forward. (c) **HGB + engineered
+features is the only variant that improves on all three tests** (−1.4% F1,
+−1.5% F2, −0.7% OOS). Gains are modest because the ML model wins only 3–5% of
+products; the ~10% selection-headroom ceiling still applies.
+
+**Status: ADOPT the engineered features into `global_ml` (keep the algorithm)
+— pending Paul's go-ahead; not applied before the 2026-08-17 presentation.**
+Requires passing the cleaned sales lines (customer_id) into
+`GlobalMLForecaster` for the customer-side features. Add XGBoost to F
+(rejected as a replacement; may be revisited as an *additional* competitor when
+a third fold exists).
+
 ## H. Adopted after testing (2026-08-05)
 
 | Idea | Evidence | Effect |

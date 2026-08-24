@@ -1,31 +1,31 @@
 {
   "enabled": false,
   "judged_on": "combined score (accuracy + total-level bias)",
-  "score_bottom_up": 1.153911082954911,
-  "score_reconciled": 1.4637207435317066,
-  "wape_bottom_up": 0.8262294718869491,
-  "wape_reconciled": 1.0090909398829686,
-  "total_error_bottom_up_pct": 32.7681611067962,
-  "total_error_reconciled_pct": 45.462980364873815,
+  "score_bottom_up": 1.1438757554508172,
+  "score_reconciled": 1.4627511835798868,
+  "wape_bottom_up": 0.818038511480061,
+  "wape_reconciled": 1.0070801899164255,
+  "total_error_bottom_up_pct": 32.58372439707561,
+  "total_error_reconciled_pct": 45.56709936634611,
   "folds": [
     {
       "fold": "Fold 1",
-      "wape_bottom_up": 1.0177122813485608,
-      "wape_reconciled": 1.320484072203933,
-      "total_error_bottom_up_pct": 45.276497201685665,
-      "total_error_reconciled_pct": 86.58587708690455,
-      "combined_bottom_up": 1.4704772533654173,
-      "combined_reconciled": 2.1863428430729783
+      "wape_bottom_up": 1.0118017086877173,
+      "wape_reconciled": 1.3213196462574364,
+      "total_error_bottom_up_pct": 44.160213473010515,
+      "total_error_reconciled_pct": 86.47987970709521,
+      "combined_bottom_up": 1.4534038434178225,
+      "combined_reconciled": 2.1861184433283887
     },
     {
       "fold": "Fold 2",
-      "wape_bottom_up": 0.6347466624253373,
-      "wape_reconciled": 0.6976978075620041,
-      "total_error_bottom_up_pct": 20.25982501190674,
-      "total_error_reconciled_pct": 4.34008364284308,
-      "combined_bottom_up": 0.8373449125444047,
-      "combined_reconciled": 0.7410986439904349
+      "wape_bottom_up": 0.6242753142724047,
+      "wape_reconciled": 0.6928407335754148,
+      "total_error_bottom_up_pct": 21.007235321140715,
+      "total_error_reconciled_pct": 4.654319025597013,
+      "combined_bottom_up": 0.8343476674838118,
+      "combined_reconciled": 0.7393839238313848
     }
   ],
-  "reason": "Scaling product forecasts to Product Category 1 totals did not improve the combined score (accuracy + total-level bias) (1.154 as-is vs 1.464 scaled), so product forecasts are used exactly as the per-product models produced them."
+  "reason": "Scaling product forecasts to Product Category 1 totals did not improve the combined score (accuracy + total-level bias) (1.144 as-is vs 1.463 scaled), so product forecasts are used exactly as the per-product models produced them."
 }

@@ -61,18 +61,118 @@ FEATURE_NAMES = [
 # Tree-native categorical columns (positions in FEATURE_NAMES).
 CATEGORICAL = ["cat1_code", "cat2_code"]
 
+# Engineered features (2026-08 experiment, docs/IDEAS.md I): improved both
+# folds AND the honest select-on-fold-1/measure-on-fold-2 test. Origin-level
+# features describe the product at the time the forecast is made; target-level
+# features describe the specific future month being predicted.
+EXT_ORIGIN = [
+    # demand shape
+    "r3_over_r12", "lag1_over_r12", "cv", "max12_over_r12", "spikes_24",
+    # customer side - breadth, concentration and mix of the buyers
+    "cust12", "conc12", "vip_share12", "cust_mean12", "qty_per_line12",
+    "lines12",
+    # item master
+    "pstat", "lp_zero",
+]
+EXT_TARGET = [
+    "smly_target", "sm2y_target", "own_si_target", "cat_si_target",
+    "h", "since_plus_h",
+]
+
+
+class AuxPanels:
+    """Customer/order-line panels for the engineered features.
+
+    Built ONCE from the cleaned sales lines and reused by every fold: all
+    features are computed per time origin `t` using only columns `<= t`, so a
+    full-length panel is leakage-safe for a training window that is a prefix
+    of the month axis (which both the back-test and the final fit are).
+    """
+
+    def __init__(self, lines, custm, vipq, cust12, conc12, pstat, lp_zero):
+        self.lines, self.custm, self.vipq = lines, custm, vipq
+        self.cust12, self.conc12 = cust12, conc12
+        self.pstat, self.lp_zero = pstat, lp_zero
+
+    @classmethod
+    def build(cls, sales: pd.DataFrame, customers: pd.DataFrame,
+              items: pd.DataFrame, item_index: pd.Index, months: list) -> "AuxPanels":
+        n_items, n_months = len(item_index), len(months)
+        dem = sales[sales["is_demand"]] if "is_demand" in sales.columns else sales
+        dem = dem.copy()
+        dem["mi"] = dem["month"].map({m: i for i, m in enumerate(months)})
+        dem["ri"] = dem["item_id"].map({iid: i for i, iid in enumerate(item_index)})
+        dem = dem.dropna(subset=["mi", "ri"])
+        dem["mi"] = dem["mi"].astype(int)
+        dem["ri"] = dem["ri"].astype(int)
+
+        if customers is not None and "customer_type" in customers.columns:
+            ct = customers.set_index("customer_id")["customer_type"]
+            dem["_vip"] = dem["customer_id"].map(ct).eq("VIP").fillna(False)
+        else:
+            dem["_vip"] = False
+
+        def mat(df, col=None, agg="size"):
+            g = df.groupby(["ri", "mi"])
+            s = (g.size() if agg == "size"
+                 else g[col].nunique() if agg == "nunique" else g[col].sum())
+            M = np.zeros((n_items, n_months))
+            if len(s):
+                M[s.index.get_level_values(0), s.index.get_level_values(1)] = \
+                    s.to_numpy(dtype=float)
+            return M
+
+        lines = mat(dem)
+        custm = mat(dem, "customer_id", "nunique")
+        vipq = mat(dem[dem["_vip"]], "quantity", "sum")
+
+        # Distinct customers and top-customer share over the trailing 12
+        # months, per origin month (indexed [t, product]).
+        pairs = dem.groupby(["ri", "customer_id", "mi"])["quantity"].sum().reset_index()
+        cust12 = np.zeros((n_months, n_items))
+        conc12 = np.zeros((n_months, n_items))
+        for t in range(n_months):
+            w = pairs[(pairs["mi"] <= t) & (pairs["mi"] > t - 12)]
+            if w.empty:
+                continue
+            per = w.groupby(["ri", "customer_id"])["quantity"].sum()
+            nc = per.groupby(level=0).size()
+            tot = per.groupby(level=0).sum()
+            mx = per.groupby(level=0).max()
+            cust12[t, nc.index.to_numpy()] = nc.to_numpy(dtype=float)
+            conc12[t, tot.index.to_numpy()] = \
+                (mx / tot.replace(0, np.nan)).fillna(0).to_numpy(dtype=float)
+
+        attrs = items.set_index("item_id") if items is not None and not items.empty \
+            else pd.DataFrame()
+        ps = pd.Series(item_index).map(
+            attrs["production_status"] if "production_status" in attrs.columns
+            else pd.Series(dtype=object))
+        pstat = ps.astype("category").cat.codes.to_numpy(dtype=float)
+        lp = pd.Series(item_index).map(
+            attrs["list_price"] if "list_price" in attrs.columns
+            else pd.Series(dtype=float)).fillna(0)
+        lp_zero = (lp <= 0).to_numpy(dtype=float)
+        return cls(lines, custm, vipq, cust12, conc12, pstat, lp_zero)
+
 
 class GlobalMLForecaster:
     """Pooled gradient-boosting forecaster over a product x month panel."""
 
     def __init__(self, horizon: int = 12, random_state: int = 42,
-                 quantile: float | None = None, recency_halflife: float | None = 24.0):
+                 quantile: float | None = None, recency_halflife: float | None = 24.0,
+                 aux: "AuxPanels | None" = None):
         self.horizon = horizon
         self.random_state = random_state
         self.quantile = quantile           # None = mean forecast (Poisson)
         self.recency_halflife = recency_halflife
+        self.aux = aux                     # engineered features on, when given
         self.models: dict[int, HistGradientBoostingRegressor] = {}
-        self.feature_names = list(FEATURE_NAMES)
+        if aux is not None:
+            self.feature_names = (list(FEATURE_NAMES[:-1]) + EXT_ORIGIN
+                                  + ["target_fiscal_month"] + EXT_TARGET)
+        else:
+            self.feature_names = list(FEATURE_NAMES)
         self._fitted = False
 
     # ---------------------------------------------------------------- static
@@ -163,7 +263,7 @@ class GlobalMLForecaster:
         else:
             mkt_yoy = 1.0
 
-        return np.column_stack([
+        base = np.column_stack([
             lag(1), lag(2), lag(3), lag(6), lag(12),
             roll(3), roll(6), roll(12),
             nz_rate(3), nz_rate(6), nz_rate(12),
@@ -173,6 +273,61 @@ class GlobalMLForecaster:
             np.full(n, fiscal_months[t]), np.full(n, float(t)),
             static,
         ])
+        if self.aux is None:
+            return base
+
+        # ---------------- engineered origin-level features ----------------
+        aux = self.aux
+        r12 = hist[:, -min(12, m):].mean(axis=1)
+        r3 = hist[:, -min(3, m):].mean(axis=1)
+        lag1 = hist[:, -1]
+        safe = np.where(r12 > 0, r12, 1.0)
+        mean_all = hist.mean(axis=1)
+        std_all = hist.std(axis=1)
+        cv = np.where(mean_all > 0, std_all / np.where(mean_all > 0, mean_all, 1), 0.0)
+        max12 = hist[:, -min(12, m):].max(axis=1)
+        w24 = hist[:, -min(24, m):]
+        med_nz = np.array([np.median(r[r > 0]) if (r > 0).any() else 0.0 for r in w24])
+        spikes = ((w24 > 2 * np.maximum(med_nz, 1e-9)[:, None])
+                  & (w24 > 2 * r12[:, None])).sum(axis=1)
+        own12 = hist[:, -min(12, m):].sum(axis=1)
+        vipq = aux.vipq[:, max(0, t - 11):t + 1].sum(axis=1)
+        vip_share = np.where(own12 > 0, vipq / np.where(own12 > 0, own12, 1), 0.0)
+        cust_mean = aux.custm[:, max(0, t - 11):t + 1].mean(axis=1)
+        lines12 = aux.lines[:, max(0, t - 11):t + 1].sum(axis=1)
+        qpl = np.where(lines12 > 0, own12 / np.where(lines12 > 0, lines12, 1), 0.0)
+        ext = np.column_stack([
+            r3 / safe, lag1 / safe, cv, max12 / safe, spikes,
+            aux.cust12[t], aux.conc12[t], vip_share, cust_mean, qpl, lines12,
+            aux.pstat, aux.lp_zero,
+        ])
+        return np.column_stack([base, ext])
+
+    def _target_block(self, values, t, h, fiscal_months, target_fm, grp, G, n):
+        """Features describing the specific TARGET month `t + h`.
+
+        Uses only values[:, :t+1] (h <= 12 keeps every index <= t)."""
+        cols = [np.full(n, float(target_fm))]
+        if self.aux is None:
+            return np.column_stack(cols)
+        hist = values[:, :t + 1]
+        j1, j2 = t + h - 12, t + h - 24
+        smly = values[:, j1] if j1 >= 0 else np.zeros(n)
+        sm2y = values[:, j2] if j2 >= 0 else smly
+        sel = fiscal_months[:t + 1] == target_fm
+        own_mean = hist.mean(axis=1)
+        own_fm = hist[:, sel].mean(axis=1) if sel.any() else own_mean
+        own_si = np.where(own_mean > 0, own_fm / np.where(own_mean > 0, own_mean, 1), 1.0)
+        cat_hist = G @ hist
+        cat_mean = cat_hist.mean(axis=1)
+        cat_fm = cat_hist[:, sel].mean(axis=1) if sel.any() else cat_mean
+        cat_si = np.where(cat_mean > 0,
+                          cat_fm / np.where(cat_mean > 0, cat_mean, 1), 1.0)[grp]
+        nz = hist > 0
+        any_sale = nz.any(axis=1)
+        since = np.where(any_sale, nz[:, ::-1].argmax(axis=1), 99)
+        cols += [smly, sm2y, own_si, cat_si, np.full(n, float(h)), since + h]
+        return np.column_stack(cols)
 
     def _build_origins(self, values, fiscal_months, static, grp, G, n_months, max_h):
         """Origin feature blocks, computed once and reused by all 12 horizons."""
@@ -199,13 +354,14 @@ class GlobalMLForecaster:
         cat_idx = [self.feature_names.index(c) for c in CATEGORICAL]
         self.models = {}
 
+        n = values.shape[0]
         for h in range(1, self.horizon + 1):
             X_parts, y_parts, w_parts = [], [], []
             for t in range(MIN_ORIGIN, n_months - h):
                 block = blocks[t]
-                target_fm = fiscal_months[t + h]
-                X_parts.append(np.column_stack(
-                    [block, np.full(block.shape[0], target_fm)]))
+                tb = self._target_block(values, t, h, fiscal_months,
+                                        fiscal_months[t + h], grp, G, n)
+                X_parts.append(np.column_stack([block, tb]))
                 y_parts.append(values[:, t + h])
                 if self.recency_halflife:
                     # Older origins mislead after the FY22->FY23 level break.
@@ -269,13 +425,15 @@ class GlobalMLForecaster:
 
         base = self._origin_features(values, t, fiscal_months, static, grp, G)
         roll6 = self.feature_names.index("roll_mean_6")
+        n = values.shape[0]
         out = np.zeros((len(panel), self.horizon))
         for h in range(1, self.horizon + 1):
             model = self.models.get(h)
             if model is None:
                 out[:, h - 1] = base[:, roll6]
                 continue
-            X = np.column_stack([base, np.full(base.shape[0],
-                                               float(future_fiscal_months[h - 1]))])
+            tb = self._target_block(values, t, h, fiscal_months,
+                                    float(future_fiscal_months[h - 1]), grp, G, n)
+            X = np.column_stack([base, tb])
             out[:, h - 1] = np.clip(model.predict(X), 0, None)
         return pd.DataFrame(out, index=panel.index)

@@ -179,7 +179,7 @@ def _predict_all_models(
     hist_fms: np.ndarray, future_fms: list[int], h: int, seas_prof: np.ndarray,
     n_jobs: int, panel_index, train_panel: pd.DataFrame | None = None,
     items: pd.DataFrame | None = None, fiscal_month_of: dict | None = None,
-    progress=None,
+    progress=None, aux=None,
 ) -> dict[str, np.ndarray]:
     """Predictions from every model for every eligible product.
 
@@ -235,7 +235,7 @@ def _predict_all_models(
     # ------------------------------------------------- pooled ML model
     if cfg["models"].get("enable_global_ml", True) and train_panel is not None:
         try:
-            gm = GlobalMLForecaster(horizon=h).fit(train_panel, items, fiscal_month_of)
+            gm = GlobalMLForecaster(horizon=h, aux=aux).fit(train_panel, items, fiscal_month_of)
             pred = gm.predict(train_panel, items, fiscal_month_of, future_fms)
             arr = np.full((n, h), np.nan)
             mask = tiers != TIER_DORMANT
@@ -251,7 +251,7 @@ def _predict_all_models(
 
 def run_backtest(
     panel: pd.DataFrame, items: pd.DataFrame, cfg: dict, fy_of: dict,
-    fiscal_month_of: dict, n_jobs: int = -1, progress=None,
+    fiscal_month_of: dict, n_jobs: int = -1, progress=None, aux=None,
 ) -> tuple[pd.DataFrame, dict]:
     """Score every candidate model on every fold.
 
@@ -296,7 +296,7 @@ def run_backtest(
             fit_vals, tiers, registry, cfg, hist_fms, future_fms, h, seas_prof,
             n_jobs, panel.index,
             pd.DataFrame(fit_vals, index=panel.index, columns=train_panel.columns),
-            items, fiscal_month_of, progress,
+            items, fiscal_month_of, progress, aux,
         )
         # Dormant products are forecast as zero by definition.
         zero_arr = np.full((values.shape[0], h), np.nan)

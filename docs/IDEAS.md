@@ -100,12 +100,15 @@ features is the only variant that improves on all three tests** (−1.4% F1,
 −1.5% F2, −0.7% OOS). Gains are modest because the ML model wins only 3–5% of
 products; the ~10% selection-headroom ceiling still applies.
 
-**Status: ADOPT the engineered features into `global_ml` (keep the algorithm)
-— pending Paul's go-ahead; not applied before the 2026-08-17 presentation.**
-Requires passing the cleaned sales lines (customer_id) into
-`GlobalMLForecaster` for the customer-side features. Add XGBoost to F
-(rejected as a replacement; may be revisited as an *additional* competitor when
-a third fold exists).
+**Status: ADOPTED — integrated 2026-08-24 (Paul's go-ahead after the
+presentation).** `AuxPanels` in `src/global_ml.py` builds the customer/order-
+line panels once per run; both back-test and final forecast use them. Deployed
+result (as delivered, incl. safeguards): WAPE 1.027 → **1.022** (FY2023 fold)
+and 0.636 → **0.625** (FY2024 fold); FY2024 bias −20.0% → −20.6%; ML wins
+171 → 242 products. Headline 176,044 → **174,507 units**. Runtime cost: full
+run ~5.5 min → ~21 min (the 49-feature fits dominate). XGBoost remains
+rejected as a replacement (worse on the honest OOS test); revisit as an
+additional competitor when a third fold exists.
 
 ## H. Adopted after testing (2026-08-05)
 

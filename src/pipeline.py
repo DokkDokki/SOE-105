@@ -145,8 +145,14 @@ def run_pipeline(
         status(f"Back-testing models ({n_models_done['n']} fitted)...", frac)
 
     status("Back-testing candidate models on past years...", 0.20)
+    # Customer/order-line panels for the ML model's engineered features
+    # (docs/IDEAS.md I). Built once; leakage-safe per origin by construction.
+    from .global_ml import AuxPanels
+    ml_aux = AuxPanels.build(sales, customers, items, panel.index,
+                             list(panel.columns))
     detail, fold_store = BT.run_backtest(
-        panel, items, cfg, fy_of, fm_of, n_jobs=n_jobs, progress=prog)
+        panel, items, cfg, fy_of, fm_of, n_jobs=n_jobs, progress=prog,
+        aux=ml_aux)
     res.backtest_detail = detail
 
     status("Choosing the best model for each product...", 0.66)
@@ -221,7 +227,7 @@ def run_pipeline(
     status(f"Forecasting FY{forecast_fy}...", 0.74)
     long, group_fc, recon_audit = FC.build_forecast(
         panel, items, selection, cfg, fy_of, fm_of, future_index,
-        reconciliation_decision=res.reconciliation, n_jobs=n_jobs)
+        reconciliation_decision=res.reconciliation, n_jobs=n_jobs, aux=ml_aux)
     res.group_forecast = group_fc
 
     # ------------------------------------------------------- 9. price & revenue

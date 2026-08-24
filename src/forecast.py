@@ -25,7 +25,7 @@ def _forecast_with_registry(
     values: np.ndarray, model_names: np.ndarray, registry: dict, cfg: dict,
     hist_fms: np.ndarray, future_fms: list[int], h: int, seas_prof: np.ndarray,
     n_jobs: int, panel: pd.DataFrame, items: pd.DataFrame, fiscal_month_of: dict,
-    progress=None,
+    progress=None, aux=None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Run each product's chosen model. Returns (forecast, fallback_used flags)."""
     n, out = values.shape[0], np.full((values.shape[0], h), np.nan)
@@ -40,7 +40,7 @@ def _forecast_with_registry(
     # The pooled ML model predicts every product in one pass.
     if "global_ml" in needed and cfg["models"].get("enable_global_ml", True):
         try:
-            gm = GlobalMLForecaster(horizon=h).fit(panel, items, fiscal_month_of)
+            gm = GlobalMLForecaster(horizon=h, aux=aux).fit(panel, items, fiscal_month_of)
             pred = gm.predict(panel, items, fiscal_month_of, future_fms).to_numpy()
             rows = np.flatnonzero(model_names == "global_ml")
             out[rows] = pred[rows]
@@ -405,6 +405,7 @@ def build_forecast(
     panel: pd.DataFrame, items: pd.DataFrame, selection: pd.DataFrame, cfg: dict,
     fy_of: dict, fiscal_month_of: dict, future_index: pd.PeriodIndex,
     reconciliation_decision: dict | None = None, n_jobs: int = -1, progress=None,
+    aux=None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Produce the final forecast. Returns (long forecast, group forecast, audit)."""
     registry = MOD.build_registry(cfg)
@@ -422,7 +423,7 @@ def build_forecast(
     fit_panel = pd.DataFrame(fit_values, index=panel.index, columns=panel.columns)
     fc, failed = _forecast_with_registry(
         fit_values, model_names, registry, cfg, all_fms, future_fms, h, seas_prof,
-        n_jobs, fit_panel, items, fiscal_month_of, progress,
+        n_jobs, fit_panel, items, fiscal_month_of, progress, aux,
     )
 
     # ------------------------------------------------------ ensemble policy
@@ -437,7 +438,7 @@ def build_forecast(
             runner_names = np.where(blendable, runners, "zero")
             fc2, failed2 = _forecast_with_registry(
                 fit_values, runner_names, registry, cfg, all_fms, future_fms, h,
-                seas_prof, n_jobs, fit_panel, items, fiscal_month_of, progress)
+                seas_prof, n_jobs, fit_panel, items, fiscal_month_of, progress, aux)
             ok = blendable & ~failed2
             fc[ok] = (fc[ok] + fc2[ok]) / 2.0
 

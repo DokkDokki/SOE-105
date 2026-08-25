@@ -35,7 +35,7 @@ better model selection. These four ideas attack the event structure directly:
 |---|---|---|---|
 | C1 | **FY2025 actuals** | +25% history; seasonal models (SARIMA ranked #1 of ~24 on dense products in its one usable fold) unlock automatically via `folds: auto`; first true validation against the published range 118,637–216,138 | Time — arrives after grading |
 | C2 | **Sales pipeline / quotation data** | The Aug/Oct spikes were known to sales before they landed. Top-50 error products carry 39.4% of error. Largest single lever on the whole project. | Mitsubishi must provide |
-| C3 | **External events & macro context** (suggested by Paul's family 2026-08-05: web-search real occurrences — Thai PMI, auto/electronics cycle, plant news — to explain FY2023/FY2024 turning points and inform FY2025) | Only path to anticipating a turning point; to be applied first as a documented overlay, separate from the supplied data | Queued for before the semi-final. Requires updating the "no external data" provenance claim in README / ASSUMPTIONS §0 / dashboard wherever it appears |
+| C3 | **External events & macro context** (suggested by Paul's family 2026-08-05) | Only path to anticipating a turning point | **DONE 2026-08-24 — see [`EXTERNAL_EVENTS.md`](EXTERNAL_EVENTS.md).** Findings: the FY2023 −42.8% crash matches Mitsubishi Electric group **FA orders −43% YoY** (Jun-23 qtr) during the global electronics inventory correction; the FY2024 +25.1% rebound is the FA/electronics capex cycle and **not** Thai automotive (which fell 20% that year — a plausible story that is simply wrong). The indicator called both turns correctly against the model (n=2). At the Apr-2025 origin it said "up" (+28% FA orders) while the model says −8.9%. Delivered as a **documented overlay, not a fitted feature** — §6 explains why 4 years / 2 folds make it unscoreable. Provenance claims updated in README + ASSUMPTIONS §0. **DECIDED (Paul, 2026-08-24): Option B — headline stays 174,514; an external-context scenario of 211,000 units / ฿1,766.7m is published alongside as a labelled cross-check. Both inside the published range 118,093–215,741. Pipeline untouched.** |
 | C4 | **Stock-availability history** | Sales are censored by stock: in shortage periods, lost sales were never recorded, so history understates true demand exactly where it matters. With availability data, censored months can be corrected. | Mitsubishi must provide |
 | C5 | **Time-series foundation models** (Chronos/TimesFM/Moirai, zero-shot) | Potentially strong on short series; a differentiator | Heavy dependency; hard to validate with only 2 folds; revisit later |
 
@@ -105,10 +105,57 @@ presentation).** `AuxPanels` in `src/global_ml.py` builds the customer/order-
 line panels once per run; both back-test and final forecast use them. Deployed
 result (as delivered, incl. safeguards): WAPE 1.027 → **1.022** (FY2023 fold)
 and 0.636 → **0.625** (FY2024 fold); FY2024 bias −20.0% → −20.6%; ML wins
-171 → 242 products. Headline 176,044 → **174,507 units**. Runtime cost: full
+171 → 242 products. Headline 176,044 → **174,507 units** (later 174,514
+after §J's rounding interaction). Runtime cost: full
 run ~5.5 min → ~21 min (the 49-feature fits dominate). XGBoost remains
 rejected as a replacement (worse on the honest OOS test); revisit as an
 additional competitor when a third fold exists.
+
+## J. Seasonal reshape of flat-model forecasts — TESTED & ADOPTED 2026-08-24
+
+Prompted by Paul: the FY2025 monthly profile looked flat, "like the average of
+the past data". Measured: it *was* nearly flat — max/min month ratio 1.10
+against 1.77 in history (March fiscal push alone is 10.9% of a year). Cause is
+structural: ~1,600 products are won by models that emit a constant monthly
+value by construction (moving averages, long-run mean, Croston/SBA/TSB, SES,
+demand rate), and the true seasonal models are excluded until FY2025 actuals
+lengthen the folds (C1).
+
+**Fix tested through the harness** (scratchpad `reshape_test*.py`): keep every
+product's annual total, redistribute its months by a seasonal index computed
+from training months only. Sanity check: recomputed flat WAPE matched the
+recorded per-product WAPE to 4 decimals over ~2,900 products.
+
+| Variant (monthly WAPE, flat-model products) | Fold 1 | Fold 2 | Verdict |
+|---|---|---|---|
+| Flat, as delivered | 0.9840 | 0.6049 | baseline |
+| Portfolio index, full strength | 0.9878 | 0.6025 | loses F1 — rejected |
+| Category index, full strength | 0.9868 | 0.6083 | loses both — rejected |
+| **Portfolio index, half strength** | **0.9828** | **0.6005** | **wins both — ADOPTED** |
+| Category index, half strength | 0.9801 | 0.6009 | wins both; needs a category join at every call site for ~equal accuracy — passed over for robustness |
+
+Portfolio-level monthly WAPE: Fold 2 improves 0.2259 → ~0.216; Fold 1 is
+unchanged *by arithmetic* — the delivered forecast over-shoots every single
+month of FY2023, so total absolute error equals the level gap regardless of
+shape. (A finding in itself: when the level is wrong enough, shape is free.)
+
+**Implementation** (commit pending): `seasonal_reshape()` in `src/forecast.py`,
+applied after safeguards in the final forecast and in all three scoring paths
+(`accuracy_as_delivered`, `benchmark_comparison`, `accuracy_by_level`) so
+reported accuracy matches what is delivered. Only rows that are genuinely
+constant are touched; floor-adjusted rows keep last year's own shape. Config:
+`models.seasonal_reshape: {enabled: true, shrink: 0.5}`. Annual totals, the
+headline and the range are unchanged by construction *before rounding*; the
+2-decimal month rounding lands differently on reshaped values, moving the
+published figures by noise only — headline 174,507 → **174,514** (+7 units,
+0.004%), range 118,089–215,732 → 118,093–215,741. Deployed result (re-run
+2026-08-24): monthly max/min ratio 1.10 → **1.38** (history 1.77); WAPE as
+delivered 1.0216 → 1.0208 (Fold 1) and 0.6253 → **0.6220** (Fold 2);
+benchmark improvement over best baseline now 17.9% / 10.1%. Intervals and
+the inventory frontier are annual-total-based and unaffected.
+
+Gains are honest but small — the real seasonal unlock remains C1 (FY2025
+actuals lengthen the folds and SARIMA/Holt-Winters start competing).
 
 ## H. Adopted after testing (2026-08-05)
 
@@ -121,6 +168,11 @@ additional competitor when a third fold exists.
 
 | Idea | Result |
 |---|---|
+| **E10: top-down category allocation for sparse products** (tested 2026-08-25) | Category MA6 level × product's 12-month share, scored on the sparse tier both folds: WAPE 1.155→1.394 (F1, +20.7%) and 1.171→1.462 (F2, +24.9%). Loses decisively — a sparse product's share of its category is itself too unstable to allocate with. |
+| **E6: Croston alpha retune** (tested 2026-08-25, winners held fixed) | No alpha beats the current 0.10 on both folds: α=0.05 wins Fold 1 (1.115→0.980) but loses Fold 2 (0.561→0.582) — the classic one-fold trap the two-fold rule exists to catch. α=0.15 ties Fold 2, loses Fold 1. Keep 0.10. |
+| **E3: Poisson/Tweedie loss for the global ML** (checked 2026-08-25) | Already in production — `global_ml` has used `loss="poisson"` since the engineered-features integration. Closed as done, not rejected. |
+| **Single-fold selection** — select models on the FY2024 fold only (raised by Paul 2026-08-25) | Measured offline from the scored back-test (2,343 products with both-fold coverage, zero-model excluded). On the year the selection never saw (FY2023): one-fold WAPE **1.472** vs two-fold **1.050** — 40% worse; the apparent FY2024 gain (0.603→0.598) is circular, the same year both chose and graded the models. 49.6% of products would flip model. FY2025 is by definition an unseen year, so the honest-OOS row is the relevant one. Also replicates ASSUMPTIONS §16's deployed result. Note the fold weights are already 1/3:2/3, so FY2024 already counts double. **Two folds stay.** |
+| **E8: short-window precursor features for the global ML** (tested 2026-08-25) | Added `lines3` (order lines, last 3 months) and `lines_uptick` (activity surge vs own quarterly average) to the feature set; fitted per fold exactly as the backtest does. Loses both folds on pooled WAPE: 1.6353→1.6738 (F1, +2.35%) and 0.7259→0.7265 (F2, +0.09%); per-product win rate ~coin flip. The A3 precursor *diagnosis* stands (1.31x lift before large orders), but the signal adds nothing beyond the existing `lines12`/trend features at monthly product level. The precursor's real home remains the sales-input channel (D1), where a human reads the early trace and enters an override. |
 | Hierarchical reconciliation to category totals | Combined score 1.16 → 1.46 (worse). Off; evidence in `reconciliation_decision.json`. |
 | Distributional (quantile) stocking policy | Dominated by the point-forecast policy at every inventory level tested. |
 | Seasonal models competing on one fold only | FY2024 total error −19.2% → −21.7% (worse); skipping the hard fold flatters the average. Reverted. |

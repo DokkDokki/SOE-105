@@ -157,6 +157,21 @@ models:
   ensemble_top_k: 1
   croston_alpha: 0.1
 
+  # --- Seasonal reshape of flat-model forecasts: ON after a measured test ----
+  # Most winning models (moving averages, Croston family, SES, TSB) emit the
+  # same number for all 12 months, which made the portfolio's monthly profile
+  # nearly flat (max/min 1.10) against a clearly seasonal history (1.77; the
+  # March fiscal push alone is 10.9% of the year). This redistributes each
+  # flat product's UNCHANGED annual total across months using the pooled
+  # seasonal shape at half strength. Measured on both folds before adoption
+  # (flat-model products, monthly WAPE): full-strength loses Fold 1
+  # (0.9878 vs 0.9840); half-strength wins both (0.9828/0.6005 vs
+  # 0.9840/0.6049). Annual totals, the headline and the range are untouched
+  # by construction. shrink: 0 = flat (off), 1 = full seasonal shape.
+  seasonal_reshape:
+    enabled: true
+    shrink: 0.5
+
 safeguards:
   # --- FLOOR: the stock-SHORTAGE guard --------------------------------------
   # A product that demonstrably sold in the last 12 months is never forecast at

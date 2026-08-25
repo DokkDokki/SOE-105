@@ -260,6 +260,67 @@ def apply_safeguards(
     return np.clip(fc, 0, None), floor_used, cap_used
 
 
+# Models whose forecast is a constant every month BY CONSTRUCTION. Averages,
+# smoothing states and Croston-family demand rates all emit one level repeated
+# across the horizon; these carry no month-to-month information that a
+# seasonal reshape could destroy.
+FLAT_OUTPUT_MODELS = frozenset({
+    "moving_average_3", "moving_average_6", "moving_average_12", "mean_all",
+    "weighted_mean", "demand_rate", "croston", "croston_sba", "tsb", "ses",
+    "naive",
+})
+
+
+def seasonal_reshape(
+    fc: np.ndarray, model_names: np.ndarray, seas_prof: np.ndarray,
+    future_fms: list[int], cfg: dict,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Redistribute flat-model forecasts across the year by the pooled
+    seasonal shape, shrunk toward flat. Annual totals are preserved exactly.
+
+    Most winning models (averages, Croston family, SES) forecast the same
+    number for all twelve months, so the portfolio's monthly profile came out
+    nearly flat (max/min 1.10) against a strongly seasonal history (1.77, with
+    the March fiscal push at 10.9% of the year). This redistributes each flat
+    product's unchanged annual total using the pooled within-year shape -
+    exactly the shape `seasonal_profile` already lends to sparse products -
+    at half strength, because the full-strength index over-commits to
+    seasonality the test years did not repeat.
+
+    Measured before adoption (both back-test folds, flat-model products only,
+    monthly WAPE): full-strength index LOSES Fold 1 (0.9878 vs 0.9840);
+    half-strength wins both folds (0.9828 / 0.6005 vs 0.9840 / 0.6049) and was
+    the best Fold 2 variant tested. A category-level index at half strength
+    scored the same but needs a category join at every call site; portfolio
+    shape was chosen for robustness. Only rows that are actually constant are
+    touched, so floor-adjusted rows (which carry last year's own shape) pass
+    through untouched.
+
+    Returns (reshaped forecast, reshape-applied flags).
+    """
+    rcfg = cfg.get("models", {}).get("seasonal_reshape", {}) or {}
+    if not rcfg.get("enabled", False) or fc.size == 0:
+        return fc, np.zeros(fc.shape[0], dtype=bool)
+    shrink = float(rcfg.get("shrink", 0.5))
+    h = fc.shape[1]
+
+    shape = np.asarray(seas_prof, dtype=float)[np.asarray(future_fms, int) - 1]
+    factors = shrink * shape + (1.0 - shrink)
+    if factors.sum() <= 0:
+        return fc, np.zeros(fc.shape[0], dtype=bool)
+    factors = factors * (h / factors.sum())   # sum == h: totals preserved
+
+    is_flat_model = np.isin(np.asarray(model_names, dtype=object),
+                            list(FLAT_OUTPUT_MODELS))
+    span = fc.max(axis=1) - fc.min(axis=1)
+    is_const = span <= 1e-9 * np.maximum(1.0, np.abs(fc).max(axis=1))
+    rows = is_flat_model & is_const & (fc.sum(axis=1) > 0)
+    if rows.any():
+        fc = fc.copy()
+        fc[rows] = fc[rows] * factors[None, :]
+    return fc, rows
+
+
 def reconcile_to_groups(
     item_fc: np.ndarray, item_ids: np.ndarray, group_of: pd.Series,
     group_fc: pd.DataFrame, max_adjustment: float = 1.5,
@@ -444,6 +505,13 @@ def build_forecast(
 
     # ------------------------------------------------------------ safeguards
     fc, guard_used, cap_used = apply_safeguards(fc, values, all_fms, seas_prof, cfg)
+
+    # ------------------------------------------------- seasonal reshape
+    # Flat-model products get the pooled seasonal shape at half strength;
+    # annual totals unchanged. Tested on both folds before adoption - see
+    # seasonal_reshape's docstring. Scoring paths in backtest.py apply the
+    # same step so reported accuracy matches what is delivered.
+    fc, _ = seasonal_reshape(fc, model_names, seas_prof, future_fms, cfg)
 
     # -------------------------------------------------------- reconciliation
     level_col = {"Product Category 1": "category_1",

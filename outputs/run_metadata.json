@@ -1,6 +1,6 @@
 {
-  "run_at": "2026-08-24T10:00:11",
-  "runtime_seconds": 1287.7,
+  "run_at": "2026-08-25T16:02:33",
+  "runtime_seconds": 409.0,
   "fiscal_start_month": 4,
   "ensemble_top_k": 1,
   "fiscal_year_label": "Apr-Mar",
@@ -42,8 +42,8 @@
   "n_products": 5706,
   "n_customers": 2159,
   "n_products_forecast_nonzero": 2741,
-  "total_forecast_quantity": 174507.0,
-  "total_forecast_revenue": 1460884997.0,
+  "total_forecast_quantity": 174514.0,
+  "total_forecast_revenue": 1461124134.0,
   "n_price_tbd": 5,
   "n_price_variable": 1075,
   "realised_to_list_ratio": 0.8846936468460321,
@@ -63,8 +63,8 @@
     "vip_share_of_quantity": 0.6272477597126116,
     "average_price_multiplier": 0.8016549657934132
   },
-  "revenue_without_vip_discount": 1903496379.2999759,
-  "revenue_if_vip_discount_37pct": 1460884997.0,
+  "revenue_without_vip_discount": 1903775567.1726685,
+  "revenue_if_vip_discount_37pct": 1461124134.0,
   "intervals": {
     "overall_low_multiplier": 0.0,
     "overall_median_multiplier": 0.9162624332402373,
@@ -83,12 +83,12 @@
     "n_observations": 2343,
     "measurement_basis": "out-of-sample (models selected without Fold 2, measured on Fold 2 only)"
   },
-  "forecast_quantity_low": 118088.54281189917,
-  "forecast_quantity_high": 215731.85197602652,
-  "forecast_revenue_low": 988577996.937061,
-  "forecast_revenue_high": 1805998761.8078468,
-  "forecast_quantity_low_if_summed": 79708.06,
-  "forecast_quantity_high_if_summed": 513145.22000000003,
+  "forecast_quantity_low": 118093.27969809677,
+  "forecast_quantity_high": 215740.5056286813,
+  "forecast_revenue_low": 988739820.4734372,
+  "forecast_revenue_high": 1806294391.5985487,
+  "forecast_quantity_low_if_summed": 79709.98999999999,
+  "forecast_quantity_high_if_summed": 513174.88,
   "reconciliation": {
     "enabled": false,
     "judged_on": "combined score (accuracy + total-level bias)",
@@ -257,7 +257,11 @@
       ],
       "recency_halflife_months": 18,
       "ensemble_top_k": 1,
-      "croston_alpha": 0.1
+      "croston_alpha": 0.1,
+      "seasonal_reshape": {
+        "enabled": true,
+        "shrink": 0.5
+      }
     },
     "safeguards": {
       "never_zero_if_sold_recently": true,

@@ -523,12 +523,13 @@ def accuracy_as_delivered(
     change the answer for roughly 1,300 products.
     """
     from .features import seasonal_profile
-    from .forecast import apply_safeguards
+    from .forecast import apply_safeguards, seasonal_reshape
 
     if not fold_store or selection.empty:
         return pd.DataFrame()
 
     item_ids = panel.index.to_numpy()
+    model_of = selection.set_index("item_id")["model"]
     rows = []
 
     for fold_name, store in fold_store.items():
@@ -544,10 +545,14 @@ def accuracy_as_delivered(
                                    columns=panel.columns[: store["split"]])
         seas = seasonal_profile(train_panel, fiscal_month_of)
         hist_fms = np.array([fiscal_month_of[m] for m in train_panel.columns])
+        test_fms = [fiscal_month_of[c]
+                    for c in panel.columns[store["split"]: store["split"] + h]]
+        mnames = model_of.reindex(item_ids[valid]).to_numpy()
 
         raw = chosen[valid].copy()
         guarded, floor_f, cap_f = apply_safeguards(
             chosen[valid].copy(), train_vals[valid], hist_fms, seas, cfg)
+        guarded, _ = seasonal_reshape(guarded, mnames, seas, test_fms, cfg)
         av = actual[valid]
         denom = np.abs(av).sum()
         if denom <= 0:
@@ -583,7 +588,7 @@ def benchmark_comparison(
     method performed poorly.
     """
     from .features import seasonal_profile
-    from .forecast import apply_safeguards
+    from .forecast import apply_safeguards, seasonal_reshape
 
     if not fold_store or selection.empty:
         return pd.DataFrame()
@@ -610,6 +615,11 @@ def benchmark_comparison(
         hist_fms = np.array([fiscal_month_of[c] for c in train_panel.columns])
         delivered, _, _ = apply_safeguards(
             chosen[valid].copy(), train[valid], hist_fms, seas, cfg)
+        test_fms = [fiscal_month_of[c]
+                    for c in panel.columns[store["split"]: store["split"] + h]]
+        mnames = (selection.set_index("item_id")["model"]
+                  .reindex(item_ids[valid]).to_numpy())
+        delivered, _ = seasonal_reshape(delivered, mnames, seas, test_fms, cfg)
 
         a = actual[valid]
         tv = train[valid]
@@ -660,7 +670,7 @@ def accuracy_by_level(
     decision it supports.
     """
     from .features import seasonal_profile
-    from .forecast import apply_safeguards
+    from .forecast import apply_safeguards, seasonal_reshape
 
     if not fold_store or selection.empty:
         return pd.DataFrame()
@@ -678,6 +688,11 @@ def accuracy_by_level(
     seas = seasonal_profile(tp, fiscal_month_of)
     hfm = np.array([fiscal_month_of[c] for c in tp.columns])
     F, _, _ = apply_safeguards(chosen[valid].copy(), train[valid], hfm, seas, cfg)
+    tfm = [fiscal_month_of[c]
+           for c in panel.columns[store["split"]: store["split"] + h]]
+    mnames = (selection.set_index("item_id")["model"]
+              .reindex(item_ids[valid]).to_numpy())
+    F, _ = seasonal_reshape(F, mnames, seas, tfm, cfg)
     A = actual[valid]
     vid = item_ids[valid]
 

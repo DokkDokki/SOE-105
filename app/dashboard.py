@@ -191,10 +191,13 @@ st.sidebar.caption(f"History: {meta['history_first_month']} → {meta['history_l
 st.sidebar.caption(f"Last run: {meta['run_at'].replace('T', ' ')}")
 st.sidebar.divider()
 
+# "Data Quality & Assumptions" is hidden from the sidebar (Paul, 2026-08-25):
+# its content lives in docs/ASSUMPTIONS.md, which is the graded artifact. The
+# page code below is kept intact - restore by adding the name back here.
 PAGES = ["Overview", "Product Analysis", "Customer Analysis",
          "Inventory Planning", "Shock Simulator",
          "Accuracy & Performance Metrics",
-         "Data Quality & Assumptions", "Data Upload & Refresh",
+         "Data Upload & Refresh",
          "Downloads & Exports"]
 
 # The chosen page is kept in the URL so a link to a specific screen can be

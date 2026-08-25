@@ -6,10 +6,10 @@ challenged and changed in `config.yaml` without touching code.
 
 ---
 
-## 0. Data provenance — nothing outside the supplied files
+## 0. Data provenance — nothing outside the supplied files enters the pipeline
 
-**Every number in this project derives solely from the three files Mitsubishi
-supplied:** `Sale Order History.xlsx`, `Item.xlsx` and `Customer.xlsx`.
+**Every number produced by this project derives solely from the three files
+Mitsubishi supplied:** `Sale Order History.xlsx`, `Item.xlsx` and `Customer.xlsx`.
 
 - No internet access, no API calls, no downloads. The codebase imports **no**
   networking library — verifiable by searching the source for `requests`,
@@ -27,10 +27,37 @@ global/world data. "Trained on all products" means all products in this dataset.
 dashboard avoids the jargon entirely and calls it "Machine learning (learns from all
 products in this dataset together)".
 
-*(Note: earlier discussion suggested that adding an external series such as a
-manufacturing index could improve future accuracy. That was a suggestion for
-possible future work only — it is **not** implemented and no such data exists
-anywhere in this project.)*
+### The one documented exception — external context, outside the pipeline
+
+Idea C3 (external events and macro context) was approved by Paul on 2026-08-24 and
+carried out. The result is [`EXTERNAL_EVENTS.md`](EXTERNAL_EVENTS.md): an analyst
+overlay built from public sources — Mitsubishi Electric group segment results, Thai
+government industrial statistics, and trade press — which explains the −42.8% FY2023
+collapse and the +25.1% FY2024 rebound that the supplied files cannot explain, and
+cross-checks the FY2025 forecast against the FA/electronics capital-expenditure cycle.
+
+**The three bullets above still hold for everything in `outputs/`.** The overlay is
+deliberately kept out of the pipeline:
+
+| | Supplied data | External overlay |
+|---|---|---|
+| Where it lives | `src/`, `config.yaml`, `outputs/` | `docs/EXTERNAL_EVENTS.md` only |
+| Enters a model? | Yes | **No** — nothing fitted, joined, or used as a feature |
+| Changes a published number? | Yes | **No** — the headline and range are unchanged |
+| Purpose | Produce the forecast | Explain and challenge it |
+
+The reason it is not fitted is stated in §6 of that document: with four fiscal years
+and two back-test folds, an annual macro regressor cannot be scored on a withheld
+year, and this project's governing rule is that nothing is adopted on plausibility.
+Using external context as a *documented judgement* rather than a hidden coefficient
+is the only use of it consistent with that rule.
+
+**Decision (Paul, 2026-08-24).** The published headline is **unchanged at 174,514
+units / ฿1,461.1m**, and an **external-context scenario of 211,000 units /
+฿1,766.7m** is published beside it as a labelled cross-check — construction and
+rules in §7a of that document. Both figures sit inside the already-published range
+of 118,093–215,741 units. The scenario is a market-direction check, not a forecast,
+and it changes no file in `src/`, `config.yaml` or `outputs/`.
 
 ---
 
@@ -397,6 +424,19 @@ test windows stepping through FY2023–FY2024. Every model then competes on ever
 fold and the comparison becomes fair. With only 48 months this is not possible
 without giving up the FY-aligned back-test the brief specified.
 
+**The interim mitigation (adopted 2026-08-24): seasonal reshape.** With seasonal
+models locked out, the winners are mostly averages and Croston-family models that
+emit a constant every month, so the delivered monthly profile came out nearly flat
+(max/min 1.10) against a clearly seasonal history (1.77). The adopted fix keeps
+every product's annual total untouched and redistributes its months by the pooled
+seasonal shape at **half strength**. Tested through the harness before adoption:
+half strength wins both folds on monthly WAPE (0.9840 → 0.9828 and 0.6049 →
+0.6005 on the affected products); the full-strength shape loses Fold 1 and was
+rejected. Applied identically in the delivered forecast and in every scoring path,
+so reported accuracy matches what is shipped. Annual totals, the headline and the
+range are unchanged by construction. Controlled by `models.seasonal_reshape`;
+full detail in `docs/IDEAS.md` §J.
+
 ---
 
 ## 17. Prediction intervals are empirical, and must not be summed
@@ -595,17 +635,27 @@ customer plans — not more elaborate models of the sales history.
 
 ## 15. What could still go wrong
 
-1. **A market turning point in FY2025.** Nothing in the supplied data explains why
-   FY2023 collapsed 43%. With only internal order history and no external drivers,
-   no method can anticipate the next turn. **This is the dominant risk.**
+1. **A market turning point in FY2025.** Nothing in the *supplied data* explains why
+   FY2023 collapsed 43%. With only internal order history, no method here can
+   anticipate the next turn — the back-test shows the models lagging both turns
+   (+45.6% too high into the crash, −20.6% too low out of it). **This is the
+   dominant risk.** Since 2026-08-24 the cause is at least *identified*: the
+   external review in [`EXTERNAL_EVENTS.md`](EXTERNAL_EVENTS.md) matches FY2023 to
+   the global electronics inventory correction (Mitsubishi Electric group FA orders
+   −43% YoY in the Jun-23 quarter) and FY2024 to the FA/electronics capex recovery.
+   The same indicator pointed *up* at the FY2025 origin while this forecast points
+   down 8.9% — so the risk on this number is asymmetric to the upside. Identifying
+   the driver does not remove the risk, because the driver is not in the data the
+   models are allowed to see.
 2. **Customer concentration.** The top 10 customers are **63.7% of all revenue**, and
    the active customer count fell from 1,246 to 869 over four years. One large
    account leaving would hurt more than any forecasting error in this document.
 3. **FY2024 contained two exceptional months** (Aug 26,952 and Oct 25,612 units vs a
-   ~14,100 median). The FY2025 forecast of 180,260 sits between the de-spiked run
+   ~14,100 median). The FY2025 forecast of **174,514** sits between the de-spiked run
    rate (~169,000) and FY2024's actual (191,592) — a deliberate central estimate. If
    those spikes represent a new normal, the forecast is low; if they were one-offs,
-   it is about right.
+   it is about right. The external review (item 1) reads the spikes as part of the
+   FA capex recovery rather than one-offs, which argues the forecast is low.
 4. **Segment C products are individually unreliable** by nature. They are 8% of
    volume and are included so nothing is missing from the plan, not because each
    number is precise.

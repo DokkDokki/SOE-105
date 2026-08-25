@@ -33,8 +33,8 @@ re-running does three things at once:
   bar. SARIMA already ranked best of ~24 methods on the dense products in the one
   fold it could run — it is currently excluded only because the earliest fold is
   too short. No code change required; this is already built and verified.
-- **First true validation**: the FY2025 forecast (176,720 units; range
-  118,637–216,138) gets compared against reality. Whether the outturn lands inside
+- **First true validation**: the FY2025 forecast (174,514 units; range
+  118,093–215,741) gets compared against reality. Whether the outturn lands inside
   the published range is the single most informative test this project can receive.
 
 ### 2. Target the error where it concentrates (largest total gain, no modelling)
@@ -71,15 +71,29 @@ A modest, real, essentially free gain — a classic result in forecasting (forec
 combinations beat single models). Planned as the first modelling change after the
 progress review, so that reported numbers stay stable until then.
 
-### 4. External demand drivers (structural fix, needs new data)
+### 4. External demand drivers — DONE as an overlay (2026-08-24)
 
 Nothing in the supplied files explains the −43% FY2023 crash or the +25% FY2024
-rebound — and these turning points dominate the error. Candidate free monthly
-series: Thai Manufacturing PMI, industrial production index, automotive production
-volumes (the customer base is heavily automotive/electronics). Even one such series
-would give the models their first chance at anticipating a turning point rather
-than reacting a year late. *Requires approval to use external data — currently the
-project deliberately uses only the supplied files.*
+rebound — and these turning points dominate the error. Approved and researched;
+full write-up in [`docs/EXTERNAL_EVENTS.md`](EXTERNAL_EVENTS.md).
+
+**What it found.** FY2023 matches the global electronics inventory correction
+almost exactly — Mitsubishi Electric group Factory Automation orders fell **43%
+YoY** in the Jun-2023 quarter against this portfolio's **−42.8%** year. FY2024's
+rebound is the FA/electronics capital-expenditure recovery, and specifically **not**
+Thai automotive, which fell 20% that same year — the obvious story is the wrong one.
+Read at each forecast origin, group FA order growth called both turning points
+correctly, in both cases against the model.
+
+**Why it is an overlay and not a feature.** With four fiscal years and two folds, an
+annual macro regressor cannot be scored on a withheld year, so adopting it as a
+fitted input would violate this project's rule that nothing is adopted on
+plausibility. The monthly Thai series (MPI, PMI) are long enough to fit but measure
+the wrong axis — they moved opposite to this portfolio in FY2024.
+
+**What it changes.** No published number. It supplies the missing explanation for
+the dominant error source, and it flags that the FY2025 point forecast sits low in
+its own range with four independent routes pointing above it.
 
 ### 5. Process change: rolling monthly re-forecasts
 

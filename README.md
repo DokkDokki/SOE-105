@@ -144,11 +144,18 @@ longer win by default. This cut the systematic bias from −30% to −19%.
 
 ### 3b. The machine-learning component, and why it is deliberately minor
 
-> **No external data is used anywhere in this project.** Every figure comes from the
-> three supplied files (`Sale Order History.xlsx`, `Item.xlsx`, `Customer.xlsx`).
-> There are no internet calls, no market indices, no third-party or benchmark data.
-> The code contains no networking libraries at all — this is verifiable by searching
-> the source for `requests`, `urllib` or any URL.
+> **No external data enters the forecast pipeline.** Every figure in `outputs/`
+> comes from the three supplied files (`Sale Order History.xlsx`, `Item.xlsx`,
+> `Customer.xlsx`). There are no internet calls, no market indices, no third-party
+> or benchmark data in any model. The code contains no networking libraries at all
+> — this is verifiable by searching the source for `requests`, `urllib` or any URL.
+>
+> **One documented exception, kept outside the pipeline:**
+> [`docs/EXTERNAL_EVENTS.md`](docs/EXTERNAL_EVENTS.md) is an analyst overlay built
+> from public sources (Mitsubishi Electric group results, Thai government
+> statistics, trade press) that explains the FY2023 collapse and FY2024 rebound and
+> cross-checks the FY2025 forecast. It is a document, not an input: nothing in it is
+> fitted, joined, or fed to any model, and no published number changes because of it.
 
 The ML model ([`src/global_ml.py`](src/global_ml.py)) is a **pooled** gradient-boosting
 regressor — one model fitted across all 5,706 products, rather than 5,706 separate

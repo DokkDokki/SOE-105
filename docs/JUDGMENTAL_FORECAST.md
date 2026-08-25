@@ -22,9 +22,15 @@ Revenue: 183,000 x ~THB 10,700 realised average -> **~THB 1,960m**.
 
 | | Judgmental | Model pipeline |
 |---|---|---|
-| FY2025 demand | ~183,000 | 176,044 |
-| FY2025 revenue | ~THB 1,960m | THB 1,907m |
-| Gap | **+4.0%** | - |
+| FY2025 demand | ~183,000 | 174,514 |
+| FY2025 revenue (Base-Price terms) | ~THB 1,960m | THB 1,903.8m |
+| Gap | **+4.9%** (units) / +3.0% (revenue) | - |
+
+*(Model figures refreshed 2026-08-24 after the engineered-ML-feature integration
+(176,044 → 174,507) and the seasonal-reshape rounding interaction (→ 174,514).
+Revenue is compared in Base-Price terms because this
+judgmental build was constructed that way; the published headline is stated net of
+the VIP 37% discount at THB 1,461.1m.)*
 
 Two independent routes land within 4%. The judgmental figure sits higher chiefly
 because of the new-product allowance (+2k, invisible to the model by construction)

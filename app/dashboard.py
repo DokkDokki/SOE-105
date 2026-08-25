@@ -192,7 +192,8 @@ st.sidebar.caption(f"Last run: {meta['run_at'].replace('T', ' ')}")
 st.sidebar.divider()
 
 PAGES = ["Overview", "Product Analysis", "Customer Analysis",
-         "Inventory Planning", "Accuracy & Performance Metrics",
+         "Inventory Planning", "Shock Simulator",
+         "Accuracy & Performance Metrics",
          "Data Quality & Assumptions", "Data Upload & Refresh",
          "Downloads & Exports"]
 
@@ -228,38 +229,90 @@ if page == "Overview":
               f"{(f_qty/ly_qty-1)*100:+.1f}% vs FY{last_fy}" if ly_qty else None)
     if q_lo:
         c1.caption(f"Expected range: **{units(q_lo)} – {units(q_hi)}**")
+    # The YoY comparison must be like-for-like: history revenue is in Base-Price
+    # terms, so compare against the undiscounted forecast, not the VIP-net one.
+    f_rev_gross = meta.get("revenue_without_vip_discount") or f_rev
     c2.metric(f"Forecast revenue, FY{FY}", thb(f_rev),
-              f"{(f_rev/ly_rev-1)*100:+.1f}% vs FY{last_fy}" if ly_rev else None)
+              f"{(f_rev_gross/ly_rev-1)*100:+.1f}% vs FY{last_fy}" if ly_rev else None)
     if r_lo:
         c2.caption(f"Expected range: **{thb(r_lo)} – {thb(r_hi)}**")
+    if meta.get("revenue_without_vip_discount") and f_rev_gross != f_rev:
+        c2.caption(f"Net of VIP 37% discount · **{thb(f_rev_gross)}** before discount "
+                   f"(comparison vs FY{last_fy} uses the before-discount figure — "
+                   f"history is recorded in Base-Price terms)")
     c3.metric("Products forecast", units(meta["n_products_forecast_nonzero"]),
               f"of {meta['n_products']:,} in the catalogue", delta_color="off")
     c4.metric("Pricing to be confirmed", units(meta["n_price_tbd"]),
               "products; quantity only", delta_color="off")
 
+    # External-context scenario (docs/EXTERNAL_EVENTS.md §7a). A labelled
+    # cross-check, not a forecast: FY2024 actual x Mitsubishi Electric group FA
+    # market growth (+10.0%, Apr 2025 - Mar 2026). Constants by design — this
+    # figure must never enter outputs/ or the pipeline.
+    st.caption("Market cross-check: **211,000 units / ฿1,766.7m net** "
+               "(FY2024 actual × factory-automation market +10.0%) — inside the "
+               "expected range above. The model forecast is the deliverable; "
+               "sources and construction in docs/EXTERNAL_EVENTS.md.")
 
     tab1, tab2, tab3, tab4 = st.tabs(
         ["Monthly Demand", "Monthly Revenue", "Seasonal Profile", "Sales Trend"])
 
     with tab1:
-        agg_cols = {"forecast_quantity": "sum"}
-        for c in ("forecast_quantity_low", "forecast_quantity_high"):
-            if c in fc_all.columns:
-                agg_cols[c] = "sum"
-        fc_m = fc_all.groupby("month", observed=True).agg(agg_cols).reset_index()
-        # Scale the per-product band to the portfolio-level range: adding up
-        # every product's worst case would assume they all happen at once.
-        lo = hi = None
-        if meta.get("forecast_quantity_low"):
-            plo = meta["forecast_quantity_low"] / max(f_qty, 1e-9)
-            phi = meta["forecast_quantity_high"] / max(f_qty, 1e-9)
-            lo = fc_m["forecast_quantity"] * plo
-            hi = fc_m["forecast_quantity"] * phi
-        fig = history_forecast_chart(
-            to_ts(hist_tot["month"]), hist_tot["quantity"],
-            to_ts(fc_m["month"]), fc_m["forecast_quantity"], "Units", height=440,
-            fc_lo=lo, fc_hi=hi)
-        st.plotly_chart(fig, use_container_width=True)
+        # Units is the planning view; order frequency is the leading-indicator
+        # view (order lines fell 11% in FY2022 while units fell only 2% - a
+        # year ahead of the FY2023 collapse - and frequency is far less
+        # distorted by single large orders).
+        view_freq = False
+        if "order_lines" in hist_tot.columns:
+            view_freq = st.toggle(
+                "Show order frequency (order lines per month) instead of units",
+                value=False)
+        if view_freq:
+            # Reference forecast for the line-count series: 6-month average
+            # level x the pooled seasonal shape at half strength. Chosen by
+            # back-test on the two withheld years (WAPE 0.317 FY2023 / 0.165
+            # FY2024); a growth-extrapolating variant won FY2023 but was
+            # worst on FY2024 and was rejected. This is a portfolio-level
+            # reference only - it never feeds the unit forecast pipeline.
+            hl = hist_tot.sort_values("month")
+            y_lines = hl["order_lines"].to_numpy(float)
+            mm_hist = hl["month"].astype(str).str[5:7]
+            fc_months = sorted(fc_all["month"].astype(str).unique())
+            idx_l = pd.Series(y_lines, index=mm_hist).groupby(level=0).mean()
+            shape_l = np.array([idx_l[m[5:7]] for m in fc_months])
+            shape_l = shape_l / shape_l.mean()
+            freq_fc = y_lines[-6:].mean() * (0.5 * shape_l + 0.5)
+            fig = history_forecast_chart(
+                to_ts(hl["month"]), hl["order_lines"],
+                pd.to_datetime(fc_months), freq_fc, "Order lines",
+                name_h="Order lines per month (history)",
+                name_f="Reference forecast (back-tested)", height=440)
+            st.plotly_chart(fig, use_container_width=True)
+            st.caption(f"FY{FY} reference: **{freq_fc.sum():,.0f} order lines** "
+                       "(6-month average level × seasonal shape at half "
+                       "strength; back-tested WAPE 0.32 / 0.17 on the two "
+                       "withheld years). Frequency shows whether customers "
+                       "are still coming; units show what to stock — the "
+                       "unit forecast pipeline is unaffected by this view.")
+        else:
+            agg_cols = {"forecast_quantity": "sum"}
+            for c in ("forecast_quantity_low", "forecast_quantity_high"):
+                if c in fc_all.columns:
+                    agg_cols[c] = "sum"
+            fc_m = fc_all.groupby("month", observed=True).agg(agg_cols).reset_index()
+            # Scale the per-product band to the portfolio-level range: adding up
+            # every product's worst case would assume they all happen at once.
+            lo = hi = None
+            if meta.get("forecast_quantity_low"):
+                plo = meta["forecast_quantity_low"] / max(f_qty, 1e-9)
+                phi = meta["forecast_quantity_high"] / max(f_qty, 1e-9)
+                lo = fc_m["forecast_quantity"] * plo
+                hi = fc_m["forecast_quantity"] * phi
+            fig = history_forecast_chart(
+                to_ts(hist_tot["month"]), hist_tot["quantity"],
+                to_ts(fc_m["month"]), fc_m["forecast_quantity"], "Units", height=440,
+                fc_lo=lo, fc_hi=hi)
+            st.plotly_chart(fig, use_container_width=True)
 
     with tab2:
         fc_r = fc_all.groupby("month", observed=True)["forecast_revenue"].sum().reset_index()
@@ -685,6 +738,211 @@ elif page == "Inventory Planning":
                          "Demand missed (units)":
                              st.column_config.NumberColumn(format="%.0f"),
                      })
+
+elif page == "Shock Simulator":
+    st.title("Shock Simulator")
+    st.caption("What happens to sales, revenue and stock if a market shock "
+               "hits during the forecast year. Scenario magnitudes come from "
+               "the documented external-events review (docs/EXTERNAL_EVENTS.md); "
+               "this page is a what-if view and changes no published number.")
+
+    from src.inventory import DEFAULT_FACTORS, simulate_policy
+
+    # ---------------- scenario controls ----------------
+    SCENARIOS = {
+        "Inventory-correction crash (FY2023-style, −43%)": -0.43,
+        "Capital-expenditure rebound (FY2024-style, +25%)": 0.25,
+        "FA market continuation (+10%)": 0.10,
+        "Custom": None,
+    }
+    c1, c2, c3 = st.columns([2.2, 1.2, 1.2])
+    scen = c1.selectbox("Scenario", list(SCENARIOS.keys()))
+    if SCENARIOS[scen] is None:
+        shock_pct = c2.slider("Demand shock (%)", -60, 60, 0, 5) / 100.0
+    else:
+        shock_pct = SCENARIOS[scen]
+        c2.metric("Demand shock", f"{shock_pct*100:+.0f}%")
+    # The FY2023 crash arrived mid-stream (record March, collapsed April).
+    # Onset month lets the shock start partway through the year.
+    month_cols = sorted(fc_all["month"].astype(str).unique())
+    onset = c3.selectbox("Shock starts in", month_cols, index=0)
+
+    # ---------------- shocked demand ----------------
+    fq = fc_all.copy()
+    fq["month"] = fq["month"].astype(str)
+    M = fq.pivot_table(index="item_id", columns="month",
+                       values="forecast_quantity", aggfunc="sum").fillna(0.0)
+    M = M.reindex(columns=month_cols).fillna(0.0)
+    plan = M.to_numpy(float)
+    mult = np.where(np.array(month_cols) >= onset, 1.0 + shock_pct, 1.0)
+    shocked = plan * mult[None, :]
+
+    f_qty_plan = plan.sum()
+    f_qty_shk = shocked.sum()
+    per_unit = (fbp["forecast_revenue"].sum(skipna=True) / f_qty_plan
+                if f_qty_plan else 0.0)
+
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Planned demand", units(f_qty_plan))
+    k2.metric("Demand under shock", units(f_qty_shk),
+              f"{(f_qty_shk/f_qty_plan-1)*100:+.1f}%" if f_qty_plan else None)
+    k3.metric("Planned revenue (net)", thb(f_qty_plan * per_unit))
+    k4.metric("Revenue under shock", thb(f_qty_shk * per_unit),
+              f"{(f_qty_shk/f_qty_plan-1)*100:+.1f}%" if f_qty_plan else None)
+
+    # ---------------- monthly picture ----------------
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=month_cols, y=plan.sum(axis=0), name="Plan (forecast)",
+        mode="lines+markers", line=dict(color=HIST_COLOUR, width=2.5)))
+    fig.add_trace(go.Scatter(
+        x=month_cols, y=shocked.sum(axis=0), name="Under shock",
+        mode="lines+markers",
+        line=dict(color=FCST_COLOUR, width=2.5, dash="dash")))
+    st.plotly_chart(base_chart(fig, 400, "Units"), use_container_width=True)
+
+    # ---------------- stock consequences ----------------
+    st.subheader("Stock Held to the Plan, Demand Arrives Shocked")
+    st.caption("Order-up-to simulation (the same engine as Inventory "
+               "Planning): stock is topped up each month to the PLAN times "
+               "the chosen factor, but the demand that arrives is the "
+               "SHOCKED series.")
+
+    factor = st.select_slider("Stock factor applied to the plan",
+                              options=list(DEFAULT_FACTORS), value=1.0)
+
+    rows = []
+    for f in DEFAULT_FACTORS:
+        svc, held, missed = simulate_policy(plan * f, shocked)
+        rows.append({"Stock factor": f, "Service level %": svc * 100,
+                     "Average stock held (units)": held,
+                     "Demand missed (units)": missed,
+                     "Revenue missed (THB)": missed * per_unit})
+    sim = pd.DataFrame(rows)
+    svc0, held0, miss0 = simulate_policy(plan * factor, shocked)
+    svc_b, held_b, miss_b = simulate_policy(plan * factor, plan)
+
+    s1, s2, s3, s4 = st.columns(4)
+    s1.metric("Service level under shock", f"{svc0*100:.1f}%",
+              f"{(svc0-svc_b)*100:+.1f} pt vs no shock")
+    s2.metric("Average stock held", units(held0),
+              f"{(held0/held_b-1)*100:+.1f}% vs no shock" if held_b else None)
+    s3.metric("Demand missed", units(miss0))
+    s4.metric("Revenue missed", thb(miss0 * per_unit))
+
+    fig2 = go.Figure()
+    base_rows = [simulate_policy(plan * f, plan) for f in DEFAULT_FACTORS]
+    fig2.add_trace(go.Scatter(
+        x=[r[1] for r in base_rows], y=[r[0] * 100 for r in base_rows],
+        mode="lines+markers", name="No shock (plan realised)",
+        line=dict(color=AXIS, width=2.5)))
+    fig2.add_trace(go.Scatter(
+        x=sim["Average stock held (units)"], y=sim["Service level %"],
+        mode="lines+markers+text",
+        text=[f"{f:.2g}x" for f in sim["Stock factor"]],
+        textposition="top center", textfont=dict(size=10, color=INK),
+        name="Under shock",
+        line=dict(color=FCST_COLOUR, width=2.5)))
+    fig2 = base_chart(fig2, 440, "Demand served (%)")
+    fig2.update_xaxes(title="Average stock held (units)")
+    fig2.update_yaxes(rangemode="normal")
+    st.plotly_chart(fig2, use_container_width=True)
+
+    st.dataframe(sim, use_container_width=True, hide_index=True,
+                 column_config={
+                     "Stock factor": st.column_config.NumberColumn(format="%.2f"),
+                     "Service level %": st.column_config.NumberColumn(format="%.1f%%"),
+                     "Average stock held (units)":
+                         st.column_config.NumberColumn(format="%.0f"),
+                     "Demand missed (units)":
+                         st.column_config.NumberColumn(format="%.0f"),
+                     "Revenue missed (THB)":
+                         st.column_config.NumberColumn(format="%.0f"),
+                 })
+
+    # ---------------- per-product impact ----------------
+    st.subheader("Per-Product Impact")
+    st.caption(f"Every product under this scenario at the {factor:.2f}x "
+               "stock factor. Same simulation, kept per product instead of "
+               "summed.")
+
+    # Per-product order-up-to run (same recurrence as simulate_policy).
+    n_p, T = plan.shape
+    target = plan * factor
+    on_hand = np.zeros(n_p)
+    served_p = np.zeros(n_p)
+    held_p = np.zeros(n_p)
+    for t in range(T):
+        on_hand = np.maximum(on_hand, target[:, t])
+        s_t = np.minimum(on_hand, shocked[:, t])
+        served_p += s_t
+        on_hand -= s_t
+        held_p += on_hand
+    held_p /= T
+    missed_p = shocked.sum(axis=1) - served_p
+
+    pp = pd.DataFrame({
+        "item_id": M.index,
+        "Planned units": plan.sum(axis=1),
+        "Units under shock": shocked.sum(axis=1),
+        "Demand missed (units)": missed_p,
+        "Average surplus stock (units)": held_p,
+    })
+    price_cols = fbp[["item_id", "item_code", "forecast_quantity",
+                      "forecast_revenue"]].copy()
+    if "category_1" in fbp.columns:
+        price_cols["category_1"] = fbp["category_1"]
+    price_cols["unit_price"] = np.where(
+        price_cols["forecast_quantity"] > 0,
+        price_cols["forecast_revenue"] / price_cols["forecast_quantity"], 0.0)
+    pp = pp.merge(price_cols[["item_id", "item_code", "unit_price"]
+                             + (["category_1"] if "category_1" in price_cols
+                                else [])],
+                  on="item_id", how="left")
+    pp["Revenue missed (THB)"] = (pp["Demand missed (units)"]
+                                  * pp["unit_price"].fillna(0.0))
+
+    fc1, fc2 = st.columns([1.4, 2])
+    cats = (sorted(pp["category_1"].dropna().unique())
+            if "category_1" in pp.columns else [])
+    pick_cat = fc1.selectbox("Category", ["All"] + cats) if cats else "All"
+    search = fc2.text_input("Search product code", "")
+    view = pp
+    if pick_cat != "All":
+        view = view[view["category_1"] == pick_cat]
+    if search.strip():
+        view = view[view["item_code"].astype(str)
+                    .str.contains(search.strip(), case=False, na=False)]
+    view = view.sort_values(["Revenue missed (THB)", "Demand missed (units)",
+                             "Average surplus stock (units)"],
+                            ascending=False)
+
+    show_cols = (["item_code"] + (["category_1"] if cats else [])
+                 + ["Planned units", "Units under shock",
+                    "Demand missed (units)", "Average surplus stock (units)",
+                    "Revenue missed (THB)"])
+    st.caption(f"{len(view):,} products shown · demand missed "
+               f"{view['Demand missed (units)'].sum():,.0f} units · revenue "
+               f"missed {thb(view['Revenue missed (THB)'].sum())} · products "
+               "with zero list price carry no revenue impact (priced per "
+               "order by the Japan branch)")
+    st.dataframe(
+        view[show_cols].rename(columns={"item_code": "Product",
+                                        "category_1": "Category"}),
+        use_container_width=True, hide_index=True, height=520,
+        column_config={c: st.column_config.NumberColumn(format="%.0f")
+                       for c in show_cols[-5:]})
+    st.download_button(
+        "Download per-product impact (all products, CSV)",
+        pp.drop(columns=["unit_price"]).rename(
+            columns={"item_id": "Item Internal ID",
+                     "item_code": "Item Code",
+                     "category_1": "Category"} if cats else
+            {"item_id": "Item Internal ID", "item_code": "Item Code"})
+        .to_csv(index=False).encode("utf-8-sig"),
+        file_name=f"FY{FY}_shock_impact_{shock_pct*100:+.0f}pct_{factor:.2f}x.csv",
+        mime="text/csv")
+
 
 elif page == "Accuracy & Performance Metrics":
     st.title("Accuracy and Performance Metrics")

@@ -69,8 +69,16 @@ def run_pipeline(
     write_outputs: bool = True,
     n_jobs: int = -1,
     on_status: Callable[[str, float], None] | None = None,
+    quick: bool = False,
 ) -> PipelineResult:
-    """Run everything. `on_status(message, fraction_complete)` drives progress bars."""
+    """Run everything. `on_status(message, fraction_complete)` drives progress bars.
+
+    `quick=True` is the monthly-refresh mode: it reuses the model selection,
+    accuracy evidence, intervals and frontier from the LAST FULL RUN and only
+    refits the chosen models on the new history (the pooled ML model is
+    reloaded prefit and rescored on fresh features). Minutes instead of ~20.
+    Falls back to a full run automatically when no previous full run exists.
+    """
     status = on_status or _noop
     t0 = time.time()
     ensure_dirs()
@@ -144,19 +152,46 @@ def run_pipeline(
         frac = 0.20 + min(n_models_done["n"] / 60.0, 1.0) * 0.45
         status(f"Back-testing models ({n_models_done['n']} fitted)...", frac)
 
-    status("Back-testing candidate models on past years...", 0.20)
     # Customer/order-line panels for the ML model's engineered features
     # (docs/IDEAS.md I). Built once; leakage-safe per origin by construction.
+    # Needed in BOTH modes: quick mode rebuilds them so the prefit ML model's
+    # features condition on the newest months.
     from .global_ml import AuxPanels
     ml_aux = AuxPanels.build(sales, customers, items, panel.index,
                              list(panel.columns))
-    detail, fold_store = BT.run_backtest(
-        panel, items, cfg, fy_of, fm_of, n_jobs=n_jobs, progress=prog,
-        aux=ml_aux)
-    res.backtest_detail = detail
 
-    status("Choosing the best model for each product...", 0.66)
-    selection = BT.select_models(detail, cfg)
+    # ---- quick-refresh availability check ------------------------------
+    prev = None
+    prefit_ml = None
+    if quick:
+        prev = load_bundle()
+        try:
+            prefit_ml = pd.read_pickle(OUTPUTS / "global_ml_fitted.pkl")
+        except Exception:
+            prefit_ml = None
+        if (prev is None or prev.get("selection") is None
+                or prev["selection"].empty):
+            status("No previous full run found - running the full pipeline...", 0.19)
+            quick, prev, prefit_ml = False, None, None
+
+    if not quick:
+        status("Back-testing candidate models on past years...", 0.20)
+        detail, fold_store = BT.run_backtest(
+            panel, items, cfg, fy_of, fm_of, n_jobs=n_jobs, progress=prog,
+            aux=ml_aux)
+        res.backtest_detail = detail
+
+        status("Choosing the best model for each product...", 0.66)
+        selection = BT.select_models(detail, cfg)
+    else:
+        status("Quick refresh: reusing model selection from the last full run...", 0.30)
+        detail = prev["backtest_detail"]
+        res.backtest_detail = detail
+        keep_cols = [c for c in prev["selection"].columns
+                     if c not in ("model_plain",)]
+        selection = prev["selection"][keep_cols].copy()
+        selection = selection[selection["item_id"].isin(panel.index)]
+        selection["model_plain"] = selection["model"].map(MOD.plain_name)
 
     # Products with no back-test result at all (e.g. brand new) still need a model.
     missing = panel.index.difference(selection["item_id"] if not selection.empty
@@ -196,7 +231,10 @@ def run_pipeline(
     # Ensemble policy annotation, so the per-product rationale stays truthful.
     if cfg["models"].get("ensemble_top_k", 1) >= 2 and "runner_up" in selection.columns:
         bl = ((selection["runner_up"].fillna("").astype(str) != "")
-              & (selection["runner_up"] != "zero") & (selection["model"] != "zero"))
+              & (selection["runner_up"] != "zero") & (selection["model"] != "zero")
+              # quick mode reuses reasons that may already carry the note
+              & ~selection["selection_reason"].astype(str).str.contains(
+                  "ensemble policy", regex=False))
         selection.loc[bl, "selection_reason"] = (
             selection.loc[bl, "selection_reason"].astype(str)
             + " | Delivered forecast is the average of this method and the "
@@ -204,30 +242,49 @@ def run_pipeline(
 
     res.selection = selection
 
-    res.backtest_summary = BT.overall_accuracy(detail, selection)
-    res.accuracy_delivered = BT.accuracy_as_delivered(
-        fold_store, selection, panel, cfg, fm_of)
-    res.benchmark = BT.benchmark_comparison(
-        fold_store, selection, panel, cfg, fm_of)
-    status("Building the inventory decision frontier...", 0.69)
-    res.frontier = INV.build_frontier(fold_store, selection, panel, cfg, fm_of)
-    res.accuracy_levels = BT.accuracy_by_level(
-        fold_store, selection, panel, cfg, fm_of, items)
+    if not quick:
+        res.backtest_summary = BT.overall_accuracy(detail, selection)
+        res.accuracy_delivered = BT.accuracy_as_delivered(
+            fold_store, selection, panel, cfg, fm_of)
+        res.benchmark = BT.benchmark_comparison(
+            fold_store, selection, panel, cfg, fm_of)
+        status("Building the inventory decision frontier...", 0.69)
+        res.frontier = INV.build_frontier(fold_store, selection, panel, cfg, fm_of)
+        res.accuracy_levels = BT.accuracy_by_level(
+            fold_store, selection, panel, cfg, fm_of, items)
 
-    # ------------------------------------------------ 7. reconciliation test
-    status("Testing whether category reconciliation improves accuracy...", 0.70)
-    if cfg["reconciliation"].get("test_on_backtest", True):
-        res.reconciliation = FC.test_reconciliation(
-            fold_store, selection, panel, items, cfg, fy_of, fm_of)
+        # -------------------------------------------- 7. reconciliation test
+        status("Testing whether category reconciliation improves accuracy...", 0.70)
+        if cfg["reconciliation"].get("test_on_backtest", True):
+            res.reconciliation = FC.test_reconciliation(
+                fold_store, selection, panel, items, cfg, fy_of, fm_of)
+        else:
+            res.reconciliation = {"enabled": cfg["reconciliation"].get("enabled", False),
+                                  "reason": "Reconciliation set manually in config."}
     else:
-        res.reconciliation = {"enabled": cfg["reconciliation"].get("enabled", False),
-                              "reason": "Reconciliation set manually in config."}
+        # Accuracy evidence, frontier and the reconciliation decision are
+        # properties of the last FULL validation - reused unchanged, and the
+        # run is labelled so nobody mistakes them for a fresh back-test.
+        status("Quick refresh: carrying forward accuracy evidence...", 0.40)
+        res.backtest_summary = prev["backtest_summary"]
+        res.accuracy_delivered = prev["accuracy_delivered"]
+        res.benchmark = prev["benchmark"]
+        res.frontier = prev["frontier"]
+        if not res.frontier.empty:
+            res.frontier.attrs["test_fy"] = prev.get("frontier_test_fy")
+            res.frontier.attrs["total_demand"] = prev.get("frontier_total_demand")
+        res.accuracy_levels = prev["accuracy_levels"]
+        res.reconciliation = prev["meta"].get(
+            "reconciliation", {"enabled": False,
+                               "reason": "Carried forward from the last full run."})
 
     # -------------------------------------------------------- 8. forecast FY
-    status(f"Forecasting FY{forecast_fy}...", 0.74)
+    status(f"Forecasting FY{forecast_fy}...", 0.74 if not quick else 0.45)
+    ml_sink: dict = {}
     long, group_fc, recon_audit = FC.build_forecast(
         panel, items, selection, cfg, fy_of, fm_of, future_index,
-        reconciliation_decision=res.reconciliation, n_jobs=n_jobs, aux=ml_aux)
+        reconciliation_decision=res.reconciliation, n_jobs=n_jobs, aux=ml_aux,
+        prefit_ml=prefit_ml, ml_out=ml_sink)
     res.group_forecast = group_fc
 
     # ------------------------------------------------------- 9. price & revenue
@@ -305,9 +362,13 @@ def run_pipeline(
 
     # --------------------------------------------- 9b. prediction intervals
     status("Working out how wide the uncertainty really is...", 0.90)
-    res.interval_multipliers, interval_summary = IV.compute_multipliers(
-        fold_store, selection, panel, cfg, fm_of, res.profile,
-        backtest_detail=detail)
+    if not quick:
+        res.interval_multipliers, interval_summary = IV.compute_multipliers(
+            fold_store, selection, panel, cfg, fm_of, res.profile,
+            backtest_detail=detail)
+    else:
+        res.interval_multipliers = prev["interval_multipliers"]
+        interval_summary = prev["meta"].get("intervals", {})
     long, agg = IV.apply_intervals(long, agg, res.interval_multipliers, res.profile)
     res.forecast = long
     res.forecast_by_product = agg
@@ -393,6 +454,9 @@ def run_pipeline(
     res.meta = {
         "run_at": pd.Timestamp.now().isoformat(timespec="seconds"),
         "runtime_seconds": round(time.time() - t0, 1),
+        "quick_mode": bool(quick),
+        "selection_from_run": (prev["meta"].get("run_at") if quick and prev
+                               else None),
         "fiscal_start_month": start_month,
         "ensemble_top_k": cfg["models"].get("ensemble_top_k", 1),
         "fiscal_year_label": FI.MONTH_ABBR[start_month - 1] + "-" +
@@ -449,6 +513,16 @@ def run_pipeline(
     if write_outputs:
         status("Writing output files...", 0.97)
         write_all(res, recon_audit)
+        # Persist the fitted pooled ML model so quick refreshes can reload it
+        # instead of refitting (the fit is what makes a full run ~20 minutes).
+        # aux is stripped: it is data-dependent and rebuilt fresh every run.
+        if not quick and ml_sink.get("model") is not None:
+            _gm = ml_sink["model"]
+            _gm.aux = None
+            try:
+                pd.to_pickle(_gm, OUTPUTS / "global_ml_fitted.pkl")
+            except Exception:
+                pass
 
     status("Done.", 1.0)
     return res
@@ -569,6 +643,7 @@ def write_all(res: PipelineResult, recon_audit: pd.DataFrame | None = None) -> N
         "meta": res.meta,
     }
     pd.to_pickle(bundle, OUTPUTS / "dashboard_bundle.pkl")
+
 
 
 def load_bundle(path: Path | None = None) -> dict | None:

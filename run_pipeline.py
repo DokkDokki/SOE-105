@@ -22,6 +22,10 @@ def main() -> int:
     ap.add_argument("--config", type=Path, default=None, help="Path to config.yaml")
     ap.add_argument("--jobs", type=int, default=-1,
                     help="Parallel workers (-1 = all cores)")
+    ap.add_argument("--quick", action="store_true",
+                    help="Quick refresh: reuse model selection and accuracy "
+                         "evidence from the last full run; only refit and "
+                         "re-forecast (minutes instead of ~20)")
     args = ap.parse_args()
 
     def status(msg: str, frac: float) -> None:
@@ -30,7 +34,7 @@ def main() -> int:
 
     try:
         res = run_pipeline(data_folder=args.data or DATA_RAW, config_path=args.config,
-                           n_jobs=args.jobs, on_status=status)
+                           n_jobs=args.jobs, on_status=status, quick=args.quick)
     except Exception as exc:
         print(f"\n\nERROR: {exc}\n", file=sys.stderr)
         return 1

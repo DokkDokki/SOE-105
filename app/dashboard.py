@@ -188,7 +188,11 @@ profile: pd.DataFrame = bundle["profile"]
 
 st.sidebar.caption(f"**{meta['forecast_label']}**")
 st.sidebar.caption(f"History: {meta['history_first_month']} → {meta['history_last_month']}")
-st.sidebar.caption(f"Last run: {meta['run_at'].replace('T', ' ')}")
+_run_label = f"Last run: {meta['run_at'].replace('T', ' ')}"
+if meta.get("quick_mode"):
+    _sel_from = (meta.get("selection_from_run") or "")[:10]
+    _run_label += f" · quick refresh (models chosen {_sel_from})"
+st.sidebar.caption(_run_label)
 st.sidebar.divider()
 
 # "Data Quality & Assumptions" is hidden from the sidebar (Paul, 2026-08-25):
@@ -1215,6 +1219,10 @@ automatically — you will see exactly how each column was matched before anythi
         st.divider()
         keep = st.checkbox(
             "Retain these files as the new default dataset", value=True)
+        quick_opt = st.checkbox(
+            "Quick refresh — reuse the model selection from the last full run "
+            "(minutes instead of ~20; accuracy evidence stays from the full run)",
+            value=False)
         if st.button("Generate forecast from this data", type="primary", disabled=not ok):
             if keep:
                 DATA_UPLOADS.mkdir(parents=True, exist_ok=True)
@@ -1226,7 +1234,7 @@ automatically — you will see exactly how each column was matched before anythi
             try:
                 for fh in ups.values():
                     fh.seek(0)
-                run_pipeline(data_folder=DATA_RAW, uploads=ups,
+                run_pipeline(data_folder=DATA_RAW, uploads=ups, quick=quick_opt,
                              on_status=lambda m, f: bar.progress(min(f, 1.0), text=m))
                 st.cache_data.clear()
                 st.success("Complete. All pages now reflect the updated forecast.")

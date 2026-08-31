@@ -39,3 +39,4 @@ presentation/
 docs/WEBSITE_PAGE_GUIDE.md
 docs/WEBSITE_PAGE_GUIDE.pdf
 docs/MODEL_EVALUATION_SCRIPT.txt
+outputs/global_ml_fitted.pkl

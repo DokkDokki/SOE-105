@@ -1,16 +1,33 @@
-# FY2025 Demand & Revenue Forecast — Mitsubishi Electric (Thailand)
+# Demand Forecasting & Inventory Planning — Mitsubishi Electric (Thailand)
 
-Forecasts **monthly demand (units)** and **monthly revenue (THB)** for every product
-for **FY2025 (April 2025 – March 2026)**, from four fiscal years of order history.
+A system that forecasts **monthly demand and revenue for every product** for
+**FY2025 (April 2025 – March 2026)** and turns that forecast into a **stock plan**,
+built from four fiscal years of order history.
 
-Built to address a specific business problem: the company suffers **both stock
-surplus and stock shortage**, so it cannot supply customers just-in-time. Every
-design decision below is aimed at producing numbers a planner can actually order
-stock against — and at making those numbers defensible to Mitsubishi.
+The business problem it answers: the company has **stock surplus and stock shortage
+at the same time**, so it cannot supply customers just-in-time. Too much of what does
+not sell, too little of what does.
+
+| | FY2024 actual | **FY2025 forecast** | Likely range |
+|---|---|---|---|
+| Demand | 191,592 units | **174,514 units** (−8.9%) | 118,093 – 215,741 |
+| Revenue, net of VIP discount | — | **฿1,461.1m** | ฿988.7m – ฿1,806.3m |
+| Revenue, Base-Price terms | ฿2,024.8m | ฿1,903.8m (−6.0%) | — |
+
+Two revenue lines because the history is recorded at Base Price while VIP customers
+pay 37% less; see [Revenue](#revenue-and-the-two-revenue-numbers). Every number
+comes from the three files Mitsubishi supplied, and every modelling choice was
+tested on years the models never saw.
+
+**New here?** Go to [Run it](#run-it). **Presenting it?** Go to
+[Demo guide](#demo-guide). **Numbers look wrong?** Go to
+[If your numbers don't match](#if-your-numbers-dont-match).
 
 ---
 
-## Quick start
+## Run it
+
+You need Python 3.10 or newer (built and tested on 3.13, Windows 11).
 
 ```bash
 pip install -r requirements.txt
@@ -24,317 +41,401 @@ python run_pipeline.py
 streamlit run app/dashboard.py
 ```
 
-The pipeline takes about **2 minutes** on a modern laptop. It reads whatever it
-finds in `data/raw/` and writes everything to `outputs/`. Then the dashboard opens
-in your browser. Non-technical users only ever need the dashboard.
+The pipeline reads `data/raw/`, writes everything to `outputs/`, and takes
+**7–16 minutes** depending on the laptop. The dashboard then opens at
+`http://localhost:8501` and loads in seconds, because it only reads the saved results.
 
-To use different data, either drop new files into `data/raw/`, or upload them on
-the dashboard's **Upload new data** page — no code changes required.
+Progress prints one model family at a time ("Back-testing models (12 fitted)…").
+That is normal: each family runs across all 5,706 products in parallel underneath.
+The machine-learning step is visibly the slowest.
 
----
+A finished run ends with a summary. **Check these two lines before doing anything else:**
 
-## What you get
+```
+Forecast quantity        : 174,514 units
+Forecast revenue         : THB 1,461,124,134
+```
 
-| File in `outputs/` | What it is |
-|---|---|
-| **`FY2025_forecast_by_product_month.csv`** | **The main deliverable.** Every product × every month: quantity, unit price, revenue, price flag, method used, accuracy. |
-| `FY2025_forecast_summary_by_product.csv` | One row per product — full-year totals. |
-| `FY2025_forecast_by_customer.csv` | Forecast allocated to customers (see caveat below). |
-| `backtest_accuracy_as_delivered.csv` | **Headline accuracy** of the complete pipeline, safeguards included. |
-| `backtest_accuracy_summary.csv` | Accuracy of the selected models on each test year. |
-| `backtest_accuracy_by_segment.csv` | Accuracy split by product reliability segment. |
-| `backtest_accuracy_by_product.csv` | Accuracy of the chosen method, per product. |
-| `backtest_all_models_scored.csv` | Every method scored on every product — the full evidence base. |
-| `model_selection_by_product.csv` | Which method was chosen for each product, and why. |
-| `data_quality_report.csv` | Every data issue found and what was done about it. |
-| `product_profile.csv` | Demand behaviour of every product. |
-| `unit_price_resolution.csv` | How each product's unit price was determined. |
-| `prediction_interval_multipliers.csv` | The measured low/high multipliers behind every forecast range. |
-| `run_metadata.json` | Full record of the run, including every setting used. |
+> **The dashboard does not update when you `git pull`.** The results file it reads
+> (`outputs/dashboard_bundle.pkl`, 40 MB) is not stored in git. After every pull,
+> run `python run_pipeline.py` again, then refresh the browser.
 
 ---
 
-## Headline results
+## Demo guide
 
-| | FY2024 actual | FY2025 forecast | Likely range | Change |
-|---|---|---|---|---|
-| Demand | 191,592 units | **180,978 units** | 119,835 – 219,313 | −5.5% |
-| Revenue (invoiced) | ฿2,024.8m | **฿2,045.4m** | ฿1,354m – ฿2,479m | +1.0% |
+Written for a teammate presenting this live. About seven minutes.
 
-The range is **measured, not assumed** — see "Prediction intervals" below.
+### Before you present
 
-3,217 of 5,706 products carry a non-zero forecast — the rest had no sales at all in
-FY2024 and are forecast as zero and clearly labelled, rather than silently dropped.
+1. `git pull`, then `python run_pipeline.py`. Do this the day before, not in the room.
+2. Confirm the summary shows **174,514 units** and **THB 1,461,124,134**.
+3. Check `data/raw/` holds exactly the three original files. The pipeline picks
+   its inputs from that folder by filename, so a second sales file sitting there
+   (for example a de-duplicated copy) can be the one that gets used.
+4. Start the dashboard and click through every page once so they are cached.
+5. Keep the browser zoom where the Overview's four numbers fit on one row.
 
----
+### The walkthrough
 
-## The fiscal year — detected, not assumed
-
-**FY runs April → March**, so **FY2025 = Apr 2025 – Mar 2026**. This was inferred
-from the data and cross-checked three ways, not taken on trust:
-
-1. The extract begins exactly on **1 April 2021** and ends exactly on **31 March 2025**.
-2. It covers exactly **48 months = 4 complete years**, with no gaps.
-3. **March is the peak month** (10.9% of annual volume vs 8.3% if flat) — the
-   classic Japanese fiscal year-end push.
-
-Detection confidence: **high**. If your organisation labels fiscal years
-differently (e.g. calling this FY2026), change `forecast_fy` in `config.yaml`.
-
----
-
-## How the forecast is produced
-
-### 1. Products are profiled before any model is chosen
-
-The catalogue is extremely sparse: the **median product sells in only 3 of 48
-months**. Holt-Winters and SARIMA need at least two full seasonal cycles, so
-fitting them everywhere would produce confident nonsense. Every product is
-therefore routed to the class of model its history can actually support:
-
-| Segment | Definition | Products | Share of FY2024 volume | Methods allowed |
-|---|---|---|---|---|
-| **A — Regular seller** | ≥ 24 active months | 932 | 82% | Everything: seasonal naïve, moving averages, drift, Holt-Winters (4 variants), SARIMA (3 orders), pooled ML |
-| **B — Occasional seller** | 6–23 active months | 1,032 | 11% | Moving averages, drift, exponential smoothing, Croston/SBA, category seasonal profile |
-| **C — Rare / lumpy** | 1–5 active months | 1,257 | 8% | Croston, Croston/SBA, demand-rate estimators only |
-| **D — No recent sales** | nothing in FY2024 | 2,485 | 0% | Forecast zero, clearly labelled |
-
-### 2. Every method competes; the winner is chosen by back-testing
-
-No model is assumed. Each product is scored against every method its segment
-allows, on **two** hidden years:
-
-| Fold | Trained on | Forecasts | Weight |
+| # | Page | Do this | Say this |
 |---|---|---|---|
-| Fold 1 | FY2021–FY2022 | FY2023 | 0.35 |
-| Fold 2 | FY2021–FY2023 | FY2024 | 0.65 |
+| 1 | **Overview** | Point at the four numbers, then the chart. | "174,514 units, ฿1.46bn net. The shaded band is the honest range, 118k to 216k. We publish a range because demand here halved in FY2023 and jumped 25% in FY2024." |
+| 2 | **Overview** | Flip the toggle *Show order frequency*. | "Units tell you what to stock. Order frequency tells you whether customers are still coming. Frequency fell 11% a full year before the crash, so it is our early-warning view." |
+| 3 | **Product Analysis** | Pick a product; show history, forecast and the method chosen for it. | "Every product gets its own method, chosen by competition. 24 methods competed on two hidden years." |
+| 4 | **Inventory Planning** | Leave the slider at **90%**. Read the four numbers. | "90% service needs about 74,000 units held. The curve is measured on a real year the models never saw." Then drag to **88%**: "88% costs 41,000. The last two points nearly double the stock, and the business gets to see that trade before choosing." |
+| 5 | **Inventory Planning** | Click *Download recommended stock levels*. | "This is the file purchasing uses: every product, every month, in whole units." |
+| 6 | **Shock Simulator** | Choose *Capital-expenditure rebound (+25%)*, stock factor 1.0×. | "If demand rebounds 25% and we stocked exactly to plan, we miss about 37,000 units, roughly ฿310m. Knowing that before the year starts is the point." Then choose the crash: "Same stock, 43% crash: about 8,700 units of surplus. Surplus and shortage are two ends of one decision." |
+| 7 | **Accuracy & Performance** | Show the benchmark table, then the accuracy-by-level table. | "18% and 10% less error than the best simple plan, on both hidden years. And 79% accurate at the level the annual budget is set." |
 
-Fold 2 is the test the brief specified. **Fold 1 was added deliberately**: Fold 2's
-test year is the +25% rebound, so on its own it rewards whichever model happened to
-guess "up". Requiring good performance across one crash year *and* one rebound year
-is a far harder, more honest test.
+If time is short, do rows 1, 4, 6 and 7.
 
-The winner is then **refit on all four years** to produce FY2025.
+### Questions you will be asked
 
-Two guards against getting fooled by a 12-point test window:
+**Why is the forecast lower than last year?**
+The models carry the recent level forward, so they lag turning points: 45.6% too
+high going into the FY2023 crash, 20.6% too low coming out of it. That is measured,
+not hidden, and it is why we publish a range and a market cross-check of
+**211,000 units** alongside the forecast ([External context](#external-context)).
 
-- **Simplicity margin** — a complex model only wins if it beats the best simple
-  baseline by ≥5%. Otherwise the simple method is kept.
-- **No leakage** — segment assignment during back-testing uses only the training
-  window, never the full history.
+**38% accuracy per product per month sounds bad.**
+The median product sells in 3 months out of 12. No method predicts *which* month.
+Accuracy is 72% per product per year and 79% for the company per year, and
+decisions are made at those levels.
 
-### 3. The selection metric is not plain accuracy
+**Why is your chart spikier than other teams'?**
+We did not edit the actuals. 0.4% of order lines carry 16% of all volume; those
+are real orders. We cap spikes only while *fitting* models, never in the data we
+score against. A forecast scored against cleaned actuals is grading its own homework.
 
-This is the single most important modelling decision in the project.
+**Why not just use machine learning for everything?**
+It was tested. The ML model wins 242 products; simple averages win about 1,000 and
+the intermittent-demand specialists about 340. On lumpy, low-volume products the
+simple methods beat it. We also tested XGBoost and LightGBM on a professor's
+suggestion: the feature engineering helped and was adopted, the library swap did not.
 
-Minimising absolute error on intermittent demand drives the forecast towards the
-**median** of the series — and for a product that sells in 4 months out of 12, the
-median is **zero**. Selecting purely on WAPE produced a **−30% systematic
-under-forecast** and silently zeroed out 1,922 products that genuinely sell.
+**Does it use any outside data?**
+No. Nothing external enters the pipeline. External market context exists only as a
+separate, labelled document that cross-checks the result.
 
-For a company already suffering stock shortages, that is exactly the wrong error.
-So the selection score adds a penalty for getting the annual total wrong:
-
-```
-score = WAPE + 1.0 × |forecast_total − actual_total| / actual_total
-```
-
-A zero forecast for a product that does sell now scores 1.0 + 1.0 = 2.0 and can no
-longer win by default. This cut the systematic bias from −30% to −19%.
-
-### 3b. The machine-learning component, and why it is deliberately minor
-
-> **No external data enters the forecast pipeline.** Every figure in `outputs/`
-> comes from the three supplied files (`Sale Order History.xlsx`, `Item.xlsx`,
-> `Customer.xlsx`). There are no internet calls, no market indices, no third-party
-> or benchmark data in any model. The code contains no networking libraries at all
-> — this is verifiable by searching the source for `requests`, `urllib` or any URL.
->
-> **One documented exception, kept outside the pipeline:**
-> [`docs/EXTERNAL_EVENTS.md`](docs/EXTERNAL_EVENTS.md) is an analyst overlay built
-> from public sources (Mitsubishi Electric group results, Thai government
-> statistics, trade press) that explains the FY2023 collapse and FY2024 rebound and
-> cross-checks the FY2025 forecast. It is a document, not an input: nothing in it is
-> fitted, joined, or fed to any model, and no published number changes because of it.
-
-The ML model ([`src/global_ml.py`](src/global_ml.py)) is a **pooled** gradient-boosting
-regressor — one model fitted across all 5,706 products, rather than 5,706 separate
-models, because the median product has only 3 usable observations.
-
-*(In forecasting literature this is called a "global" model, meaning one model across
-all the series in the dataset, as opposed to a "local" model fitted per series. The
-word refers to the modelling structure, not to global/world data. In the dashboard it
-is labelled "Machine learning (learns from all products in this dataset together)" to
-avoid any confusion.)* Strategy is **direct multi-horizon**
-(12 separate regressors, one per month ahead) to avoid error accumulation, with
-Poisson loss so it targets the conditional *mean* rather than the median.
-
-Crucially it uses **cross-series features**: each product sees its category's level,
-trend and year-on-year change, its own share of that category, and the whole market's
-level and trend — all computed using only data available at that point in time.
-Category and market series are dense even when an individual product is not, which is
-where a sparse product gets context its own history cannot provide. Adding these
-moved it from 16th to **12th** of ~24 methods on the dense segment.
-
-It wins **178 of 5,706 products (4.2% of forecast revenue)**. That is the right
-outcome, not a failure: with 48 monthly observations, classical and intermittent-demand
-methods are simply better suited, and the per-product bake-off means a weak component
-cannot damage the forecast — it only wins where it genuinely earns it. Deep learning
-(N-BEATS, DeepAR, LSTM) was deliberately **not** used; those need far more history
-than exists here and would overfit spectacularly.
-
-### 4. Two business safeguards
-
-- **Shortage floor** — no product that demonstrably sold in the last 12 months is
-  forecast below **25% of its own last-year volume**. The reference is last year's
-  volume, deliberately not a lifetime average (a lifetime average turned a product
-  selling 1 unit/year into a forecast of 24, because it had been a fast mover three
-  years earlier). An earlier version triggered only on exactly-zero forecasts, which
-  let a product selling 1,786 units/year be forecast at 12; a code review caught
-  this and the floor is now proportional. Applied to **1,276 products**.
-- **Surplus cap** — no product is forecast above **1.5× its largest annual volume in
-  the last three years**. "Repeat last month" and straight-line trend can take one
-  unusually large final month and project it across twelve — one product jumped
-  from 290 units to 948 that way. Applied to **119 products**.
-
-Both are reported in the dashboard and can be switched off in `config.yaml`.
-
-### 5. Hierarchical reconciliation — tested, then rejected
-
-Product forecasts can be scaled so they sum to independently-forecast category
-totals. This was **implemented and back-tested**, and it made accuracy *worse*
-(combined score 1.161 as-is vs 1.464 scaled), so it is **switched off**. The
-decision and its evidence are written to `outputs/reconciliation_decision.json`
-rather than being a matter of taste. If future data changes the verdict, the
-pipeline will switch it on automatically.
+**What about products with a price of 0?**
+That is a business convention: the price is quoted per order by the Japan branch.
+It is never treated as ฿0. Prices are recovered from each product's own billed
+history, and only 5 products end up with no price at all.
 
 ---
 
-## Prediction intervals — measured, not assumed
+## If your numbers don't match
 
-Every forecast ships as **low / best / high** rather than a single number, because a
-point estimate implies a precision this data cannot support.
+| You see | Cause | Fix |
+|---|---|---|
+| Revenue **฿1.90bn** instead of ฿1.46bn | Your copy predates the VIP discount setting, or `pricing.vip_discount` is `0.0` locally. Same forecast, different pricing rule. | `git pull`, check `config.yaml` has `vip_discount: 0.37`, re-run. |
+| Old numbers after `git pull` | The dashboard reads a results file that is not in git. | `python run_pipeline.py`, then refresh. |
+| Units near **172,900** | The de-duplicated sales file is the one in `data/raw/`. | Keep only the original `Sale Order History.xlsx` there. |
+| Units of **176,720**, **176,044** or **174,507** | Older code. Each was the headline at an earlier commit. | `git pull`, re-run. |
+| Units slightly different, everything else current | Possibly library versions: `requirements.txt` sets minimums, not exact versions, and the ML model is the one version-sensitive part. Not measured, so treat as a lead. | Match the reference run: scikit-learn 1.8.0, pandas 2.2.3, numpy 2.2.3. |
+| The upload "didn't stick" | An uploaded file is used for that one run only. Every later run reads `data/raw/` again. | To make new data permanent, put the file in `data/raw/`. |
+| Sidebar says "quick refresh" | The last run reused an older model selection. | Run the full pipeline (no `--quick`). |
 
-The intervals are **empirical**. Rather than assuming errors are normally distributed
-(they are emphatically not — demand here is intermittent, skewed, and bounded below
-by zero), they come from the errors the pipeline really made on the two hidden years:
+---
 
-1. For every product, take the model actually selected for it and the forecast it
-   would have produced for each hidden year — **safeguards included**, so this
-   measures what the business would really have received.
-2. Compute `actual / forecast` for that year.
-3. Pool those ratios within each reliability segment.
-4. The 10th and 90th percentiles become the low and high multipliers.
+## How the forecast is made
 
-| Segment | Low | Typical | High | Observations |
+### Products are sorted before any model is chosen
+
+The catalogue is extremely sparse, so each product is only offered the methods its
+history can support.
+
+| Segment | Definition | Products | Share of FY2024 volume |
+|---|---|---|---|
+| **A — Regular seller** | 24+ active months | 932 | 81.6% |
+| **B — Occasional seller** | 6–23 active months | 1,032 | 10.7% |
+| **C — Rare / lumpy** | 1–5 active months | 1,257 | 7.6% |
+| **D — No recent sales** | nothing sold in FY2024 | 2,485 | 0% |
+
+### A tournament, scored on two hidden years
+
+About 24 methods compete on every product: moving averages and other baselines,
+exponential smoothing, the intermittent-demand specialists (Croston, Croston/SBA,
+TSB), and one pooled machine-learning model.
+
+| Fold | Trained on | Forecasts blind | Weight |
+|---|---|---|---|
+| 1 | FY2021–FY2022 | FY2023 (the crash) | 0.35 |
+| 2 | FY2021–FY2023 | FY2024 (the rebound) | 0.65 |
+
+Each product keeps the method with the best weighted score, and the winners are then
+**refit on all 48 months** to produce FY2025. Two folds rather than one, because
+selecting on FY2024 alone was measured to be **40% worse on an unseen year**
+(WAPE 1.472 against 1.050). A complex method must also beat the best simple one by
+5% to win.
+
+Who won, across 5,706 products:
+
+| Method | Products |
+|---|---|
+| Forecast zero | 3,394 |
+| Average of last 6 / 3 / 12 months | 607 / 250 / 173 |
+| Machine learning (pooled gradient boosting) | 242 |
+| Croston/SBA, Croston, TSB | 214 / 67 / 61 |
+| Straight-line trend | 194 |
+| Recent level × category seasonal pattern | 96 |
+| Everything else (8 methods) | 408 |
+
+"Forecast zero" is the 2,485 dormant products plus about 900 rare ones whose best
+back-tested forecast was zero. A safeguard then lifts any that sold in the last 12
+months, which leaves **2,741 products with a non-zero forecast**.
+
+### The selection score is not plain accuracy
+
+Minimising absolute error on intermittent demand pulls the forecast toward the
+*median*, and for a product selling 4 months in 12 the median is zero. Selecting on
+error alone produced a −30% systematic under-forecast and zeroed out 1,922 real
+products. For a company with shortages that is the wrong mistake to make, so the
+score penalises missing the total as well:
+
+```
+score = WAPE + |forecast total − actual total| / actual total
+```
+
+### The machine-learning model
+
+One gradient-boosted tree model (scikit-learn `HistGradientBoosting`, Poisson loss)
+trained across **all products together**, because the median product has too little
+history to train on alone. It uses 49 features: the product's own lags and rolling
+averages, its category and the whole market, seasonality, spike history, and
+customer signals such as buyer count, concentration and order frequency.
+
+Forecasting literature calls this a "global" model, meaning one model across all
+the series in this dataset. It does not mean global or external data.
+
+### Safeguards and shaping
+
+- **Shortage floor.** No product that sold in the last 12 months is forecast below
+  25% of its own last-year volume. Applied to 1,266 products.
+- **Surplus cap.** No product is forecast above 1.5× its largest annual volume of
+  the last three years. Applied to 129 products.
+- **Seasonal reshape.** Methods like averages and Croston produce a flat line, which
+  made the year look flat (peak-to-trough 1.10 against 1.77 in history). Those
+  products now get the pooled seasonal shape at half strength (1.38). Annual totals
+  are untouched. Full strength lost on Fold 1 and was rejected.
+
+---
+
+## Accuracy, reported honestly
+
+| Fold | Test year | Actual | Forecast | Total error | WAPE |
+|---|---|---|---|---|---|
+| 1 | FY2023 | 142,911 | 208,022 | **+45.6%** | 1.021 |
+| 2 | FY2024 | 190,100 | 150,869 | **−20.6%** | 0.622 |
+
+These look bad and they are not hidden. FY2023 is the year demand collapsed 43% and
+FY2024 the year it rebounded 25%. No method caught either turn from the sales
+history alone. They are the realistic worst case, not the error of a normal year.
+
+**Against simple planning**, same products, same years (WAPE, lower is better):
+
+| | Repeat last year | Last year spread evenly | This system | vs best simple plan |
 |---|---|---|---|---|
-| A — Regular seller | 0.47× | 0.97× | 1.71× | 1,864 |
-| B — Occasional seller | 0.20× | 1.00× | 4.00× | 1,828 |
-| C — Rare / lumpy | 0.00× | 1.00× | 3.00× | 553 |
+| FY2023 | 1.426 | 1.243 | **1.021** | **−17.9%** |
+| FY2024 | 0.845 | 0.692 | **0.622** | **−10.1%** |
 
-So "low to high" means: *in back-testing, 8 out of 10 products in this segment landed
-between these figures.* Segment C's low multiplier of 0.00 is not a bug — a lumpy
-product genuinely can sell nothing in a given year.
+**Accuracy depends on the question** (FY2024 test year):
 
-**Per-product ranges must never be added up.** Summing every product's 10th
-percentile assumes all 5,706 have their worst year simultaneously, which produced a
-meaningless 74,226 – 367,146 band. Portfolio uncertainty is dominated by *systematic*
-(market-wide) risk, so the company-wide range instead comes from how the **total**
-actually landed in each hidden year (0.66× in the crash year, 1.21× in the rebound
-year). This distinction is enforced in code and explained in the dashboard.
+| Decision | Accuracy |
+|---|---|
+| One product, one month | 37.8% |
+| One product, a quarter | 54.5% |
+| One product, the year | 72.3% |
+| A category, one month | 74.1% |
+| The company, the year | **79.4%** |
+
+**The ceiling was measured.** With perfect hindsight, picking the best method for
+every product would remove only about **10%** of the remaining error. The rest is
+information that is not in the sales history. 25 ideas were tested on the hidden
+years; 5 were adopted and the rest are documented in
+[`docs/IDEAS.md`](docs/IDEAS.md) so nobody repeats them.
+
+MAPE is reported because it was requested, but it is undefined whenever an actual
+is zero, which is most of this catalogue. Judge the forecast on WAPE, MASE and total error.
 
 ---
 
-## How revenue is calculated
+## Inventory planning
+
+The forecast is what we expect. How much to stock is a choice, so the output is a
+**curve**: for each stocking policy, how much of the demand that really arrived in
+FY2024 would have been served, and how much stock that meant holding.
+
+| Target service | Average stock held | Policy |
+|---|---|---|
+| 70% | 8,900 units | 1.50× forecast |
+| 80% | 19,700 units | 1.75× forecast, 0.50× P90 buffer |
+| 85% | 29,100 units | 2.00× forecast, 0.75× P90 buffer |
+| 88% | 41,000 units | 2.50× forecast, 1.00× P90 buffer |
+| **90%** (default) | **74,100 units** | 0.75× forecast, 1.75× P90 buffer |
+| 92% (the maximum reached) | 135,700 units | 0.75× forecast, 3.00× P90 buffer |
+
+**The stocking rule.** Hold, per product per month, the *larger* of the forecast
+times a multiplier and a multiple of that product's own P90 single-month demand.
+Whole units, rounded up.
+
+**Why a buffer.** A multiplier alone reaches 90% only at **15× the forecast, about
+187,000 units held**. Lumpy demand is not under-forecast, it is differently shaped:
+a product expected at 0.3 a month that occasionally takes one order of 50 needs a
+150× multiplier, and a multiplier spends that on every other product as well. The
+buffer reaches the same 90% with about 74,000 units, which is roughly 2.6 stock
+turns a year.
+
+**Limits.**
+- The curve ends near 92%. About 2% of demand lands on products forecast at zero,
+  which no stock policy can serve.
+- Above about 90%, stock is set by the buffer rather than the forecast, and a naive
+  forecast needs the same amount. The forecasting earns its keep between 70% and
+  88%: at 88% it needs 41,000 units where a naive forecast needs 49,400.
+- 88% → 90% nearly doubles the stock. The page shows that so the business can choose.
+
+**The downloaded plan** is in whole units. Plain rounding would delete slow movers
+(a product expected at 0.33 a month rounds to zero twelve times), so each product's
+units are placed in its strongest months and its annual total is preserved. The file
+adds up to exactly 174,514, and it uses the same stocking rule the curve was
+simulated with, so the service level on the page is the one the file delivers.
+
+A row can show *forecast 0* with stock held. Those are products expected to sell
+under half a unit a year; they did sell in the test year, and their buffers are
+cheaper per point of service than the rest of the curve.
+
+---
+
+## Shock Simulator
+
+Applies a demand shock to the FY2025 plan and runs the same stock simulation: stock
+held to the *plan*, demand arriving *shocked*. Scenario sizes come from documented
+events, and nothing on the page changes a published number.
+
+| Scenario | Stocked at 1.0× the plan |
+|---|---|
+| Capital-expenditure rebound, **+25%** (what FY2024 did) | 83.0% service; **37,000 units missed, about ฿310m** |
+| FA market continuation, **+10%** | 93.3% service; 12,800 units missed, about ฿108m |
+| Inventory-correction crash, **−43%** (what FY2023 did) | everything served; **about 8,700 units of surplus** |
+
+A custom shock size and an onset month are available, and a per-product table shows
+which products carry the damage, with a CSV download.
+
+---
+
+## External context
+
+Nothing in the supplied files explains the FY2023 collapse or the FY2024 rebound,
+so we went and found out. [`docs/EXTERNAL_EVENTS.md`](docs/EXTERNAL_EVENTS.md)
+is an analyst overlay built from public sources. **It is a document, not an input:**
+nothing in it is fitted, joined, or fed to a model.
+
+- **FY2023, −42.8%.** The global electronics inventory correction. Mitsubishi
+  Electric's own Factory Automation orders fell 43% year on year in the same window.
+- **FY2024, +25.1%.** The FA capital-expenditure recovery. Not Thai automotive,
+  which fell 20% that same year; the obvious story is the wrong one.
+- Read at each forecast origin, FA order growth called both turns correctly, each
+  time against the model. That is two observations, so it is evidence, not proof.
+
+**Decision:** the forecast stays **174,514**. A market cross-check of
+**211,000 units / ฿1,766.7m** (FY2024 actual × the FA market's +10%) is published
+beside it as a labelled scenario. Both sit inside the published range. It is not
+fitted as a feature because four years and two folds cannot test an annual indicator.
+
+---
+
+## Revenue, and the two revenue numbers
 
 ```
 revenue = forecast quantity × historical billed share × unit price
 ```
 
-**Price = 0 is never treated as ฿0 revenue.** Per the business, a zero price means
-the price is requested from the Japan branch per order and varies. Resolution
-cascade, first rule that succeeds:
+**A price of 0 is never ฿0.** It means the price is quoted per order by the Japan
+branch. Prices are resolved in this order:
 
 | # | Rule | Products |
 |---|---|---|
-| 1 | Quantity-weighted average price actually achieved in the last 12 months | 3,146 |
+| 1 | Average price actually charged, last 12 months | 3,146 |
 | 2 | Same, over the product's whole history | 2,480 |
-| 3 | Master list price × the catalogue's realised/list ratio (0.885, computed from the data) | 75 |
-| 4 | **`PRICE_TBD`** — revenue left blank, never guessed. Quantity still forecast. | **5** |
+| 3 | Master list price × the typical realised/list ratio (0.91) | 75 |
+| 4 | `PRICE_TBD`: revenue left blank, quantity still forecast | **5** |
 
-Of 1,080 products that have ever been priced at zero, **1,000 had a real price
-recoverable from their own sales history**. Only 5 products (0.01% of volume) are
-genuinely unknown, and they are flagged distinctly in both the CSV and dashboard.
+1,080 products have at some point been priced at zero, and almost all had a real
+price recoverable from their own billed lines. The 5 left over carry about 2 units.
 
-Products whose history contains *any* zero price are flagged
-`PRICE_VARIABLE_ESTIMATED` even when a price was recovered, so nobody mistakes an
-estimate for a firm price.
+**The VIP discount.** The data dictionary says VIP customers pay 37% below Base
+Price, and the Base Price column does not already include it. The team decision
+(`pricing.vip_discount: 0.37`) is to state revenue net of it, **฿1,461.1m**, and
+always show the Base-Price figure, **฿1,903.8m**, beside it. If Mitsubishi confirms
+Base Price is the invoiced amount, set it to `0.0`.
 
-**The pricing method is validated separately.** Running FY2024's *actual*
-quantities through exactly these pricing rules reproduces FY2024's actual invoiced
-revenue to within **+2.3%** — so the revenue figures rest on sound prices, and any
-remaining error is forecasting error, not pricing error.
-
----
-
-## Accuracy — reported honestly
-
-| Fold | Test year | Actual | Forecast | Total error | WAPE |
-|---|---|---|---|---|---|
-| Fold 1 | FY2023 | 142,929 | 214,023 | **+49.7%** | 1.055 |
-| Fold 2 | FY2024 | 190,094 | 153,526 | **−19.2%** | 0.636 |
-
-**These look bad, and they are not hidden.** FY2023 is the year demand collapsed
-43%; FY2024 is the year it rebounded 25%. Neither turning point was predictable
-from the data preceding it — no method in the bake-off caught either. **These are
-the realistic worst case, not the expected error in a normal year.** Per-product
-median MASE of 0.27 on Fold 2 means the chosen methods are roughly **4× better than
-a naïve "same as last year" guess** at the product level.
-
-### A note on MAPE
-
-MAPE is reported because it was requested, but it is **not** the selection metric.
-It is mathematically undefined whenever an actual is zero — which, with a median of
-3 active months out of 48, is most of this catalogue. Every MAPE figure is published
-alongside the count of months it had to skip. **WAPE, MASE and total-error % are the
-metrics to judge this forecast by.**
+Compare like with like: FY2024's ฿2,024.8m is in Base-Price terms, so the fair
+comparison is ฿1,903.8m (−6.0%), not ฿1,461.1m. The pricing rules were validated
+separately: FY2024's actual quantities through these rules reproduce FY2024's
+invoiced revenue within +2.3% in Base-Price terms.
 
 ---
 
-## Data quality — what was found and done
+## Data decisions
 
-The two master lists reconcile **perfectly**: zero orphan records in either
-direction, and Item ID↔Code and Customer ID↔Name are strictly 1:1. No fuzzy name
-matching was needed. The checks still run and are published as evidence.
+Full evidence for each is in [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md).
 
 | Finding | Decision |
 |---|---|
-| **6,865 exact duplicate order lines** (1.8% of quantity) | **Kept.** Forensic evidence says they are genuine repeated ERP lines: 2,568 of 2,674 affected orders duplicate only *some* lines (an export bug would clone whole orders uniformly); they are spread evenly across all four years (3.8–5.2%); 65% carry qty 1. Toggle in `config.yaml`. |
-| **`Closed` status defined two ways** in the supplied data dictionary — "completed and closed" vs "will not be fulfilled or billed" (14.5% of FY2024 volume) | **Demand counts every status** (a closed order still expressed real customer demand — the signal inventory planning needs). **Revenue counts only invoiced statuses.** Both series are published. |
-| 52 rows with quantity 0 | Dropped — not transactions, zero revenue impact. |
-| Large orders (max 6,000 units vs median 1) | **Never deleted.** They are real demand. Winsorised for model *fitting* only; all scoring and reporting use untrimmed actuals. |
-| 171 discontinued products still selling in FY2024 (1.4% of volume) | **Not auto-excluded** despite the data dictionary's advice. Forecast and flagged instead of dropped. |
-| 13 null list prices in the item master | Handled by the price cascade above. |
-| Missing values in the sales file | **None.** |
+| **Fiscal year** | April → March, detected from the data: the extract runs exactly 1 Apr 2021 – 31 Mar 2025, 48 months with no gaps, and March is the peak month. |
+| **6,863 exactly duplicated order lines** (1.8% of volume) | **Kept.** Four forensic checks show genuine ERP behaviour. Removing them moves the forecast under 2%. |
+| **`Closed` orders** (14.5% of FY2024 quantity) | Counted as **demand** (the customer wanted it) but not as **revenue** (it was never billed). |
+| **Spikes** | Never removed from actuals. Capped at each product's own p99 while fitting only. |
+| **Monthly forecasts** | Kept fractional. They are expected demand, and rounding them deletes slow movers. The stock plan is where whole units belong. |
+
+`clean_data.py` in the project root is a teammate's standalone data-validation
+script (keys, nulls, types) that writes cleaned CSVs to a separate folder. It is not
+part of the forecast pipeline.
 
 ---
 
 ## Known limitations
 
-1. **The customer view is an allocation, not a forecast.** Individual customers
-   order far too irregularly to forecast directly. Each product's forecast is split
-   across its customers by their share of that product over the last 12 months.
-   Labelled as such wherever it appears. Use for account planning, not commitments.
-2. **Segment C and D products are individually unreliable.** They are included so
-   nothing is missing from the plan, not because each number is precise. Together
-   they are 8% of volume.
-3. **No external drivers.** Nothing in the supplied data explains *why* FY2023
-   collapsed. With only internal order history, a genuine market turning point in
-   FY2025 cannot be anticipated — this is the dominant risk in the forecast.
-4. **Customer count keeps falling** (1,246 → 869 over four years) while volume
-   recovers. Revenue is concentrating into fewer accounts — the top 10 customers are
-   63.7% of all revenue. A single large account leaving would hurt more than any
-   forecasting error.
+1. **Turning points.** With only internal order history, no method here can
+   anticipate the next market turn. This is the dominant risk, and the external
+   evidence says the risk on this forecast is to the upside.
+2. **Customer concentration.** The top 10 customers are 68.5% of revenue (67.6% of
+   units), and active customers fell from 1,246 to 869 in four years. One large
+   account leaving would matter more than any forecasting error.
+3. **The customer view is an allocation**, not a forecast: each product's forecast
+   split by customers' recent share. Use it for account planning, not commitments.
+4. **Segments C and D are individually unreliable.** They are in the plan so nothing
+   is missing, not because each number is precise. Together they are under 8% of volume.
+5. **Sales are censored by stock.** In a shortage, lost sales were never recorded, so
+   history understates true demand exactly where it matters.
+
+What would actually move accuracy is information, not algorithms: quotation data
+(the large orders were known to sales before they landed), a 30-minute monthly
+sales review of the top ~50 products, and the FY2025 actuals.
+
+---
+
+## What is in `outputs/`
+
+| File | What it is |
+|---|---|
+| **`FY2025_forecast_by_product_month.csv`** | **The main deliverable.** Every product × month: quantity, range, price, revenue, method, accuracy. |
+| `FY2025_forecast_summary_by_product.csv` | One row per product: annual total, method, P90 event exposure. |
+| `FY2025_forecast_by_customer.csv` | The forecast allocated to customers. |
+| `inventory_service_frontier.csv` | The service-level / stock-held curve, with the naive comparison. |
+| `backtest_accuracy_as_delivered.csv` | Headline accuracy of the full pipeline, safeguards included. |
+| `benchmark_comparison.csv` | This system against the two naive plans. |
+| `accuracy_by_decision_level.csv` | The same forecast scored at every decision level. |
+| `backtest_all_models_scored.csv` | Every method on every product. The full evidence base. |
+| `model_selection_by_product.csv` | Which method each product got, and why. |
+| `unit_price_resolution.csv` | How each product's price was determined. |
+| `data_quality_report.csv` | Every data issue found and what was done. |
+| `prediction_interval_multipliers.csv` | The measured multipliers behind every range. |
+| `run_metadata.json` | Full record of the run, including every setting. |
+
+The recommended stock plan is downloaded from the Inventory Planning page, since it
+depends on the service level chosen there.
 
 ---
 
@@ -342,73 +443,52 @@ matching was needed. The checks still run and are published as evidence.
 
 ```
 mitsubishi-forecast/
-├── config.yaml               # every assumption, documented and changeable
+├── config.yaml             every assumption, documented and changeable
+├── run_pipeline.py         command-line entry point  (--quick for a fast refresh)
 ├── requirements.txt
-├── run_pipeline.py           # command-line entry point
 ├── data/
-│   ├── raw/                  # put source files here (.xlsx or .csv)
-│   └── uploads/              # files uploaded via the dashboard
+│   ├── raw/                the three source files
+│   └── uploads/            kept copies of files uploaded via the dashboard (never read back)
 ├── src/
-│   ├── config.py             # config loading; no absolute paths anywhere
-│   ├── ingest.py             # CSV/Excel reading, tolerant column mapping
-│   ├── clean.py              # cleaning, master-list reconciliation, quality report
-│   ├── fiscal.py             # fiscal-year detection and calendar helpers
-│   ├── features.py           # monthly panel, product profiling, segmentation
-│   ├── models.py             # all candidate forecasting methods
-│   ├── global_ml.py          # pooled gradient-boosting model
-│   ├── metrics.py            # WAPE, MAE, RMSE, MASE, MAPE, SMAPE, bias
-│   ├── backtest.py           # two-fold back-test and model selection
-│   ├── forecast.py           # refit, safeguards, reconciliation
-│   ├── pricing.py            # price resolution and revenue
-│   └── pipeline.py           # orchestrates everything
-├── app/
-│   └── dashboard.py          # Streamlit dashboard
+│   ├── ingest.py           CSV/Excel reading with tolerant column matching
+│   ├── clean.py            cleaning, master-list reconciliation, quality report
+│   ├── fiscal.py           fiscal-year detection
+│   ├── features.py         monthly panel, product profiling, segmentation
+│   ├── models.py           the statistical forecasting methods
+│   ├── global_ml.py        the pooled machine-learning model and its features
+│   ├── backtest.py         two-fold back-test, selection, benchmarks
+│   ├── forecast.py         refit, safeguards, seasonal reshape
+│   ├── intervals.py        measured prediction ranges
+│   ├── pricing.py          price resolution, VIP discount, revenue
+│   ├── inventory.py        stocking policy, service curve, whole-unit plan
+│   ├── metrics.py          WAPE, MASE, MAE, MAPE, bias
+│   └── pipeline.py         runs everything in order
+├── app/dashboard.py        the Streamlit dashboard
 ├── docs/
-│   └── ASSUMPTIONS.md        # every decision, with the evidence behind it
-└── outputs/                  # all generated files
+│   ├── ASSUMPTIONS.md      every decision, with its evidence
+│   ├── IDEAS.md            every idea tested: adopted, rejected, and why
+│   ├── EXTERNAL_EVENTS.md  the market-context overlay
+│   ├── JUDGMENTAL_FORECAST.md   an independent analyst cross-check
+│   └── IMPROVEMENT_ROADMAP.md   where further accuracy would come from
+└── outputs/                all generated files
 ```
 
 ---
 
-## Why Streamlit
+## Using it after handover
 
-The brief needs *Python pipeline + upload a CSV + easy for everyone*. Streamlit is
-the right fit because it runs **the same Python objects the pipeline produces** with
-no separate API, database or JavaScript layer — so the website and the command line
-can never disagree. `st.file_uploader` delivers the entire "upload new data and
-re-run" requirement in one component, and the result is a plain web page any team
-member can read without training. Dash would need callback plumbing; Power BI or
-Tableau would need the modelling to live outside Python, breaking reproducibility.
+**Monthly.** Open the dashboard → *Data Upload & Refresh* → choose the newer sales
+file → *Generate forecast*. The page shows how every column was matched before
+anything runs and refuses a file missing an essential column. Only the sales file is
+required; the item and customer masters are reused. An upload drives that one run.
+To make the new file the permanent input, place it in `data/raw/`.
 
----
+**Quick refresh.** Ticking *Quick refresh* (or `python run_pipeline.py --quick`)
+reuses the model selection and accuracy evidence from the last full run and refits on
+the new data, in under a minute instead of 7–16. Runs are labelled as quick in the
+sidebar. Do a full run each quarter, and always before presenting numbers.
 
-## Using this in future years
-
-The pipeline is built to be re-run, not rebuilt. Two things to know.
-
-### 1. Refreshing the forecast — no code, no analyst
-
-Open the dashboard → **Upload new data** → choose the newer file(s) → **Run**.
-Everything downstream re-runs from scratch:
-
-`read → validate schema → clean → reconcile against masters → profile every product →
-re-segment → back-test every candidate method → re-select the winner per product →
-refit on all history → apply safeguards → resolve prices → recompute revenue →
-recompute prediction intervals → write all CSVs → refresh every dashboard page`
-
-Roughly 2 minutes. The upload page shows exactly how each of your columns was matched
-**before** anything runs, and refuses files missing an essential column. Only the
-sales file is mandatory — the item and customer masters are reused from `data/raw/`
-if you don't replace them.
-
-The model choice is **re-decided from scratch** every run. A product that used a
-6-month average this year may switch to Croston next year if that back-tests better.
-That is intended: the method should follow the data, not be frozen at first build.
-
-### 2. Switch the folds to `auto` after submission
-
-The delivered `config.yaml` hard-codes the two back-test folds so the numbers match
-this README and the brief exactly. **For ongoing use, change it to:**
+**After FY2025 actuals arrive**, set the back-test to follow the data:
 
 ```yaml
 backtest:
@@ -416,49 +496,25 @@ backtest:
   fold_weights: []
 ```
 
-Otherwise the pipeline keeps testing itself against FY2023 and FY2024 forever — going
-stale while still appearing to work. With `auto`, it always tests the most recent
-complete fiscal years present in the data.
-
-**This also fixes a known limitation by itself.** Holt-Winters and SARIMA need 25–28
-months of training data; today's earliest fold has only 24, so all seven seasonal
-models are excluded (section 16 of ASSUMPTIONS.md). Verified behaviour as history
-grows:
-
-| History available | Folds generated | Seasonal models |
-|---|---|---|
-| 48 months (today) | test FY2023 (24mo train), FY2024 (36mo) | excluded — fold 1 too short |
-| **60 months (once FY2025 lands)** | test FY2024 (36mo), FY2025 (48mo) | **both folds usable — unlock automatically** |
-| 72 months | test FY2025 (48mo), FY2026 (60mo) | usable |
-
-So next year the method set genuinely widens with no code change.
-
-### 3. When the real FY2025 numbers arrive
-
-That is the first chance to validate this work **for real** rather than by
-back-testing. Add the FY2025 actuals to `data/raw/`, re-run, and the pipeline will
-test itself against them automatically (with `folds: auto`). Compare against the
-range published here — 119,835 – 219,313 units, best estimate 180,978 — and record
-whether the outturn fell inside it. That single check is worth more than any further
-modelling.
-
-### Suggested operating rhythm
+With 60 months of history both folds become long enough for Holt-Winters and SARIMA,
+which are built in but locked out today because the earliest fold has only 24
+training months. They unlock with no code change. That run is also the first real
+validation: record whether the outturn fell inside **118,093 – 215,741**.
 
 | When | Do |
 |---|---|
-| Monthly | Re-run with the latest closed orders. Watch the Segment A products — 82% of volume. |
-| Quarterly | Review the Data Quality page; re-check the price-TBD list with the Japan branch. |
+| Monthly | Refresh with the latest orders. Watch Segment A, 82% of volume. |
+| Quarterly | Full run. Re-check the price-TBD list with the Japan branch. |
 | Annually | Re-read `docs/ASSUMPTIONS.md` and confirm each decision still holds. |
-| Always | Plan against the **range**, not the point. Use Segment A/B/C to decide how much to trust each number. |
+| Always | Plan against the **range**, not the point. |
 
 ---
 
 ## Reproducibility
 
-- No absolute paths anywhere — everything resolves relative to the project root.
+- No absolute paths. Everything resolves relative to the project root.
 - Every assumption lives in `config.yaml`, not in code.
-- Random seeds fixed (`random_state=42`) on the ML model.
-- `run_metadata.json` records the complete configuration used for every run, so any
-  number can be traced back to the settings that produced it.
-- The dashboard's re-run button calls the **same** `run_pipeline()` function as the
-  command line.
+- The ML model uses a fixed seed (`random_state=42`); the statistical methods are deterministic.
+- `run_metadata.json` records the full configuration of every run.
+- The dashboard's run button calls the same `run_pipeline()` as the command line.
+- No networking library is imported anywhere in `src/`.

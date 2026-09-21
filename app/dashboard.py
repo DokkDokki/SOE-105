@@ -1236,7 +1236,8 @@ automatically — you will see exactly how each column was matched before anythi
 
         st.divider()
         keep = st.checkbox(
-            "Retain these files as the new default dataset", value=True)
+            "Keep a copy of these files in data/uploads/ (later runs still read data/raw/)",
+            value=True)
         quick_opt = st.checkbox(
             "Quick refresh — reuse the model selection from the last full run "
             "(minutes instead of ~20; accuracy evidence stays from the full run)",

@@ -658,16 +658,18 @@ elif page == "Inventory Planning":
                    "Naive (last year's average)": AXIS}
         for label, g in fr.groupby("Approach", sort=False):
             g = g.sort_values("Average stock held (units)")
+            buf = (g["Event buffer (x P90 month)"]
+                   if "Event buffer (x P90 month)" in g.columns
+                   else pd.Series(0.0, index=g.index))
+            policy_txt = [f"{f:.2f}x forecast" + (f" + {b:.2f}x P90 buffer" if b > 0 else "")
+                          for f, b in zip(g["Stock factor"], buf)]
             fig.add_trace(go.Scatter(
                 x=g["Average stock held (units)"], y=g["Service level %"],
-                mode="lines+markers+text",
-                text=[f"{f:.2g}x" for f in g["Stock factor"]],
-                textposition="top center",
-                textfont=dict(size=10, color=INK),
+                mode="lines+markers", text=policy_txt,
                 name=label,
                 line=dict(color=colours.get(label, HIST_COLOUR), width=2.5),
-                marker=dict(size=7),
-                hovertemplate=("stock factor %{text}<br>average stock "
+                marker=dict(size=6),
+                hovertemplate=("%{text}<br>average stock "
                                "%{x:,.0f} units<br>service level "
                                "%{y:.1f}%<extra>" + label + "</extra>"),
             ))
@@ -679,38 +681,54 @@ elif page == "Inventory Planning":
         # ---------------- pick a target service level ----------------
         st.subheader("Selecting an Operating Point")
         from src.inventory import factor_for_service, recommend_stock
+        BUF_COL = "Event buffer (x P90 month)"
+        ours = fr[fr["Approach"] == "This forecasting system"]
+        # The slider stops at what the simulation actually reached: part of
+        # demand lands on products with no history to stock against.
+        top = int(np.floor(ours["Service level %"].max()))
         target = st.slider(
             "Target service level (% of demand served from stock)",
-            min_value=50, max_value=85, value=70, step=5)
+            min_value=50, max_value=top, value=min(90, top), step=1)
         rec = factor_for_service(fr, float(target))
         if rec:
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Required stock factor", f"{rec['factor']:.2f}x")
-            c2.metric("Service level achieved in simulation",
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Forecast multiplier", f"{rec['factor']:.2f}x")
+            c2.metric("Event buffer", f"{rec['buffer']:.2f}x P90 month"
+                      if rec["buffer"] > 0 else "none")
+            c3.metric("Service level achieved in simulation",
                       f"{rec['service']:.1f}%")
-            c3.metric("Average stock this implied", units(rec["stock"]))
+            c4.metric("Average stock this implied", units(rec["stock"]))
+            st.caption("Stock held per product per month is the larger of the "
+                       "forecast × the multiplier and the buffer × that "
+                       "product's own P90 single-month demand, in whole units. "
+                       "A multiplier alone cannot reach 90% on demand this "
+                       "lumpy — it needs 15× the forecast.")
             if not rec["achievable"]:
                 st.caption("The requested service level was not reached by any policy evaluated; the figures shown are the highest point on the curve.")
+            policy = (f"{rec['factor']:.2f}x"
+                      + (f" + {rec['buffer']:.2f}xP90" if rec["buffer"] > 0 else ""))
+            expo = (fbp.set_index("item_id")["event_exposure_p90_month"]
+                    if "event_exposure_p90_month" in fbp.columns else None)
             recdf = recommend_stock(
                 fc_all[["item_id", "item_code", "month_label",
                         "forecast_quantity"]].rename(
                     columns={"month_label": "month"}),
-                rec["factor"])
+                rec["factor"],
+                annual_totals=fbp.set_index("item_id")["forecast_quantity"],
+                exposure=expo, buffer=rec["buffer"])
             recdf = recdf.rename(columns={
                 "item_id": "Item Internal ID", "item_code": "Item Code",
-                "month": "Month", "forecast_quantity": "Forecast quantity",
-                "recommended_stock": f"Recommended stock ({rec['factor']:.2f}x)"})
-            if "event_exposure_p90_month" in fbp.columns:
-                recdf = recdf.merge(
-                    fbp[["item_id", "event_exposure_p90_month"]].rename(columns={
-                        "item_id": "Item Internal ID",
-                        "event_exposure_p90_month":
-                            "Event exposure (P90 single-month demand, units)"}),
-                    on="Item Internal ID", how="left")
+                "month": "Month", "forecast_quantity": "Forecast quantity (units)",
+                "recommended_stock": f"Recommended stock, units ({policy})"})
+            if expo is not None:
+                # whole units, like every other quantity in this file
+                recdf["Event exposure (P90 single-month demand, units)"] = (
+                    np.ceil(recdf["Item Internal ID"].map(expo).fillna(0.0) - 1e-9)
+                    .astype("int64"))
             st.download_button(
-                f"Download recommended stock levels ({rec['factor']:.2f}x, CSV)",
+                f"Download recommended stock levels ({policy}, CSV)",
                 recdf.to_csv(index=False).encode("utf-8-sig"),
-                file_name=f"FY{FY}_recommended_stock_{rec['factor']:.2f}x.csv",
+                file_name=f"FY{FY}_recommended_stock_{int(round(rec['service']))}pct_service.csv",
                 mime="text/csv")
 
         # ---------------- event exposure ----------------
@@ -753,7 +771,7 @@ elif page == "Shock Simulator":
                "the documented external-events review (docs/EXTERNAL_EVENTS.md); "
                "this page is a what-if view and changes no published number.")
 
-    from src.inventory import DEFAULT_FACTORS, simulate_policy
+    from src.inventory import DEFAULT_FACTORS, simulate_policy, stock_targets
 
     # ---------------- scenario controls ----------------
     SCENARIOS = {
@@ -820,14 +838,14 @@ elif page == "Shock Simulator":
 
     rows = []
     for f in DEFAULT_FACTORS:
-        svc, held, missed = simulate_policy(plan * f, shocked)
+        svc, held, missed = simulate_policy(stock_targets(plan, f), shocked)
         rows.append({"Stock factor": f, "Service level %": svc * 100,
                      "Average stock held (units)": held,
                      "Demand missed (units)": missed,
                      "Revenue missed (THB)": missed * per_unit})
     sim = pd.DataFrame(rows)
-    svc0, held0, miss0 = simulate_policy(plan * factor, shocked)
-    svc_b, held_b, miss_b = simulate_policy(plan * factor, plan)
+    svc0, held0, miss0 = simulate_policy(stock_targets(plan, factor), shocked)
+    svc_b, held_b, miss_b = simulate_policy(stock_targets(plan, factor), plan)
 
     s1, s2, s3, s4 = st.columns(4)
     s1.metric("Service level under shock", f"{svc0*100:.1f}%",
@@ -838,7 +856,7 @@ elif page == "Shock Simulator":
     s4.metric("Revenue missed", thb(miss0 * per_unit))
 
     fig2 = go.Figure()
-    base_rows = [simulate_policy(plan * f, plan) for f in DEFAULT_FACTORS]
+    base_rows = [simulate_policy(stock_targets(plan, f), plan) for f in DEFAULT_FACTORS]
     fig2.add_trace(go.Scatter(
         x=[r[1] for r in base_rows], y=[r[0] * 100 for r in base_rows],
         mode="lines+markers", name="No shock (plan realised)",
@@ -875,7 +893,7 @@ elif page == "Shock Simulator":
 
     # Per-product order-up-to run (same recurrence as simulate_policy).
     n_p, T = plan.shape
-    target = plan * factor
+    target = stock_targets(plan, factor)   # whole units, as on Inventory Planning
     on_hand = np.zeros(n_p)
     served_p = np.zeros(n_p)
     held_p = np.zeros(n_p)

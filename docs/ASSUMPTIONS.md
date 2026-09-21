@@ -633,6 +633,28 @@ customer plans — not more elaborate models of the sales history.
 
 ---
 
+## 22. The stock plan: whole units, and a 90% service target needs an event buffer
+
+**Decision (Paul, 2026-09-21; evidence in `docs/IDEAS.md` §K).**
+
+| Choice | What was decided | Why |
+|---|---|---|
+| Default service target | **90%** of demand served from stock (was 70%) | It is the level the business actually targets. 70% implied ~24 stock turns a year, unrealistically lean; 90% implies ~2.6, normal for an industrial distributor. |
+| Stocking rule | Hold the **larger** of *forecast × multiplier* and *a multiple of the product's own P90 single-month demand*, in whole units | A multiplier alone reaches 90% only at 15× the forecast (~187,000 units held). The buffer reaches it at ~74,000. Lumpy demand is differently shaped, not under-forecast. |
+| Units | The stock plan is in **whole units**; the forecast deliverable stays fractional expected demand | Stock is indivisible. Plain rounding deletes slow movers (§ `output.round_quantities`), so months are allocated by largest remainder — every product keeps its annual total and the file reconciles to the headline. |
+| What is simulated | The frontier is simulated on the **same whole-unit levels that are exported** | Previously the export rounded up while the simulation did not — the downloaded plan held 9.7% more stock than the plan whose service level was quoted. |
+
+**Limits, stated plainly.** The curve ends near 92–93%: about 2% of demand lands on
+products forecast at zero, which no stock policy can serve. Above ~90% the stock is
+set by the buffer, not the forecast — a naive forecast needs the same stock there.
+The forecasting work earns its keep in the 70–88% band (at 88%: 41.0k units against
+49.4k for a naive forecast). And the last two points are the expensive ones: 88%
+costs ~41k units, 90% costs ~74k. The page lets the business see that trade and choose.
+
+Buffers in the back-test come from the training window only.
+
+---
+
 ## 15. What could still go wrong
 
 1. **A market turning point in FY2025.** Nothing in the *supplied data* explains why

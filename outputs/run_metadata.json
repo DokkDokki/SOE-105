@@ -1,6 +1,8 @@
 {
-  "run_at": "2026-08-25T16:02:33",
-  "runtime_seconds": 409.0,
+  "run_at": "2026-09-21T10:31:40",
+  "runtime_seconds": 884.7,
+  "quick_mode": false,
+  "selection_from_run": null,
   "fiscal_start_month": 4,
   "ensemble_top_k": 1,
   "fiscal_year_label": "Apr-Mar",

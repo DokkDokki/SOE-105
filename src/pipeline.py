@@ -350,12 +350,8 @@ def run_pipeline(
     # spike SIZE: the 90th percentile of the product's non-zero months (its
     # maximum where history is too short for a quantile). Used on the
     # Inventory Planning page to size event buffers for spike-prone products.
-    vals = panel.to_numpy(dtype=float)
-    expo = np.zeros(len(panel))
-    for _i, _r in enumerate(vals):
-        _nz = _r[_r > 0]
-        expo[_i] = (np.quantile(_nz, 0.9) if len(_nz) >= 4
-                    else (_nz.max() if len(_nz) else 0.0))
+    # Same function the inventory frontier is back-tested with.
+    expo = INV.event_exposure(panel.to_numpy(dtype=float))
     agg["event_exposure_p90_month"] = agg["item_id"].map(
         dict(zip(panel.index, np.round(expo, 1)))).fillna(0.0)
     res.forecast_by_product = agg

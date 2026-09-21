@@ -157,6 +157,73 @@ the inventory frontier are annual-total-based and unaffected.
 Gains are honest but small — the real seasonal unlock remains C1 (FY2025
 actuals lengthen the folds and SARIMA/Holt-Winters start competing).
 
+## K. Inventory policy: whole units + event buffer — TESTED & ADOPTED 2026-09-21
+
+Raised after the semi-final (Paul, 2026-09-21): the exported stock plan should be
+in whole units, and the service level the business actually targets is ~90%, not
+the 70% the page defaulted to. Both were tested on the withheld FY2024 year before
+anything changed.
+
+**1. The 90% target exposed a real limit.** The frontier only had a forecast
+multiplier, and it topped out at 80.7% (3.0×). Extending the multiplier does not
+fix that:
+
+| Policy reaching ~90% | Average stock held |
+|---|---|
+| Forecast multiplier only (15×) | ~187,000 units |
+| **Forecast × factor, floored by a multiple of the product's own P90 month** | **~74,000 units** |
+
+Lumpy demand is not under-forecast, it is differently *shaped*: a product expected
+at 0.3/month that occasionally takes one order of 50 needs a 150× multiplier, and a
+multiplier spends that on every other product too. The event-exposure figure (A4)
+already measured the right quantity — it was shown on the page but never used in
+the policy. It is now. Buffers are computed from the **training window only** in
+the back-test, so the test year never informs the buffer it is scored against.
+
+Cheapest policy per service level (efficient ladder, P90-only buffer):
+70% → 8.9k units · 80% → 19.7k · 85% → 29.1k · 88% → 41.0k · **90% → 74.1k** ·
+92% → 135.7k · ceiling ~92–93% (about 2% of demand lands on products forecast at
+zero, which no stock policy can serve).
+
+Mixing quantiles (P75/P90/P100) was also tested and buys almost nothing (90% at
+73.7k vs 74.1k), so the single published P90 is used — one rule, one sentence.
+
+**Two honest caveats, kept visible:** (a) above ~90% the forecast stops mattering —
+stock is driven by the buffer and a naive forecast needs the same 74k; the
+forecast's edge is the 70–88% band (88%: 41.0k vs 49.4k naive, −17%). (b) The last
+two points are expensive: 88% costs 41k, 90% costs 74k. 74k units against ~190k
+annual demand is ~2.6 stock turns, a normal figure for an industrial distributor;
+the old 70% point implied ~24 turns, which was unrealistically lean.
+
+**2. Whole units, without deleting products.** Plain rounding was already
+rejected (§F: it removes 1,922 products, 12.5% of volume). The stock plan now uses
+a largest-remainder allocation per product (`inventory.to_whole_units`): every
+month is a whole number, within one unit of the expected value, and each product's
+annual total is preserved — the file adds up to the published headline exactly
+(174,514; all 2,741 live products kept). The forecast deliverable itself stays as
+fractional *expected* demand, for the reason documented in `config.yaml`.
+
+**3. Inconsistencies found and fixed along the way.**
+- The exported plan rounded stock **up** while the simulation behind the quoted
+  service level used unrounded fractions — the downloaded plan held 9.7% more
+  stock than the plan whose service level was displayed. The frontier is now
+  simulated on the same whole-unit levels that are exported (`stock_targets`).
+- The monthly file summed to 174,428 against a 174,514 headline (2-decimal month
+  rounding); the whole-unit plan reconciles to the headline.
+- Event exposure was computed by two separate copies of the same loop (pipeline
+  and back-test); both now call `inventory.event_exposure`.
+- The Shock Simulator also held fractional stock; it now uses the same rule.
+
+**A row can read "forecast 0, stock held" — that is correct.** Products expected to
+sell under half a unit a year round to a whole-unit forecast of 0, but still receive
+a buffer. Tested: on the withheld year those products really sold (861 units, 0.45%
+of demand); dropping their buffers saves 2.2% of stock and costs 0.11–0.16 points of
+service — a better rate than the rest of the curve charges, so they stay. Truly
+dormant products (no expected demand at all) get no stock.
+
+Decks built before this date quote the old 70% / 1.50× / ~8,000-unit operating
+point; the dashboard is the current source.
+
 ## H. Adopted after testing (2026-08-05)
 
 | Idea | Evidence | Effect |

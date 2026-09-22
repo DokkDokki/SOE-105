@@ -140,7 +140,7 @@ the series in this dataset. It does not mean global or external data.
 
 ---
 
-## Accuracy, reported honestly
+## Accuracy
 
 | Fold | Test year | Actual | Forecast | Total error | WAPE |
 |---|---|---|---|---|---|

@@ -19,9 +19,8 @@ pay 37% less; see [Revenue](#revenue-and-the-two-revenue-numbers). Every number
 comes from the three files Mitsubishi supplied, and every modelling choice was
 tested on years the models never saw.
 
-**New here?** Go to [Run it](#run-it). **Presenting it?** Go to
-[Demo guide](#demo-guide). **Numbers look wrong?** Go to
-[If your numbers don't match](#if-your-numbers-dont-match).
+**Run it** below, then read on for how the forecast is made, how accurate it is,
+and how it becomes a stock plan.
 
 ---
 
@@ -59,83 +58,6 @@ Forecast revenue         : THB 1,461,124,134
 > **The dashboard does not update when you `git pull`.** The results file it reads
 > (`outputs/dashboard_bundle.pkl`, 40 MB) is not stored in git. After every pull,
 > run `python run_pipeline.py` again, then refresh the browser.
-
----
-
-## Demo guide
-
-Written for a teammate presenting this live. About seven minutes.
-
-### Before you present
-
-1. `git pull`, then `python run_pipeline.py`. Do this the day before, not in the room.
-2. Confirm the summary shows **174,514 units** and **THB 1,461,124,134**.
-3. Check `data/raw/` holds exactly the three original files. The pipeline picks
-   its inputs from that folder by filename, so a second sales file sitting there
-   (for example a de-duplicated copy) can be the one that gets used.
-4. Start the dashboard and click through every page once so they are cached.
-5. Keep the browser zoom where the Overview's four numbers fit on one row.
-
-### The walkthrough
-
-| # | Page | Do this | Say this |
-|---|---|---|---|
-| 1 | **Overview** | Point at the four numbers, then the chart. | "174,514 units, ฿1.46bn net. The shaded band is the honest range, 118k to 216k. We publish a range because demand here halved in FY2023 and jumped 25% in FY2024." |
-| 2 | **Overview** | Flip the toggle *Show order frequency*. | "Units tell you what to stock. Order frequency tells you whether customers are still coming. Frequency fell 11% a full year before the crash, so it is our early-warning view." |
-| 3 | **Product Analysis** | Pick a product; show history, forecast and the method chosen for it. | "Every product gets its own method, chosen by competition. 24 methods competed on two hidden years." |
-| 4 | **Inventory Planning** | Leave the slider at **90%**. Read the four numbers. | "90% service needs about 74,000 units held. The curve is measured on a real year the models never saw." Then drag to **88%**: "88% costs 41,000. The last two points nearly double the stock, and the business gets to see that trade before choosing." |
-| 5 | **Inventory Planning** | Click *Download recommended stock levels*. | "This is the file purchasing uses: every product, every month, in whole units." |
-| 6 | **Shock Simulator** | Choose *Capital-expenditure rebound (+25%)*, stock factor 1.0×. | "If demand rebounds 25% and we stocked exactly to plan, we miss about 37,000 units, roughly ฿310m. Knowing that before the year starts is the point." Then choose the crash: "Same stock, 43% crash: about 8,700 units of surplus. Surplus and shortage are two ends of one decision." |
-| 7 | **Accuracy & Performance** | Show the benchmark table, then the accuracy-by-level table. | "18% and 10% less error than the best simple plan, on both hidden years. And 79% accurate at the level the annual budget is set." |
-
-If time is short, do rows 1, 4, 6 and 7.
-
-### Questions you will be asked
-
-**Why is the forecast lower than last year?**
-The models carry the recent level forward, so they lag turning points: 45.6% too
-high going into the FY2023 crash, 20.6% too low coming out of it. That is measured,
-not hidden, and it is why we publish a range and a market cross-check of
-**211,000 units** alongside the forecast ([External context](#external-context)).
-
-**38% accuracy per product per month sounds bad.**
-The median product sells in 3 months out of 12. No method predicts *which* month.
-Accuracy is 72% per product per year and 79% for the company per year, and
-decisions are made at those levels.
-
-**Why is your chart spikier than other teams'?**
-We did not edit the actuals. 0.4% of order lines carry 16% of all volume; those
-are real orders. We cap spikes only while *fitting* models, never in the data we
-score against. A forecast scored against cleaned actuals is grading its own homework.
-
-**Why not just use machine learning for everything?**
-It was tested. The ML model wins 242 products; simple averages win about 1,000 and
-the intermittent-demand specialists about 340. On lumpy, low-volume products the
-simple methods beat it. We also tested XGBoost and LightGBM on a professor's
-suggestion: the feature engineering helped and was adopted, the library swap did not.
-
-**Does it use any outside data?**
-No. Nothing external enters the pipeline. External market context exists only as a
-separate, labelled document that cross-checks the result.
-
-**What about products with a price of 0?**
-That is a business convention: the price is quoted per order by the Japan branch.
-It is never treated as ฿0. Prices are recovered from each product's own billed
-history, and only 5 products end up with no price at all.
-
----
-
-## If your numbers don't match
-
-| You see | Cause | Fix |
-|---|---|---|
-| Revenue **฿1.90bn** instead of ฿1.46bn | Your copy predates the VIP discount setting, or `pricing.vip_discount` is `0.0` locally. Same forecast, different pricing rule. | `git pull`, check `config.yaml` has `vip_discount: 0.37`, re-run. |
-| Old numbers after `git pull` | The dashboard reads a results file that is not in git. | `python run_pipeline.py`, then refresh. |
-| Units near **172,900** | The de-duplicated sales file is the one in `data/raw/`. | Keep only the original `Sale Order History.xlsx` there. |
-| Units of **176,720**, **176,044** or **174,507** | Older code. Each was the headline at an earlier commit. | `git pull`, re-run. |
-| Units slightly different, everything else current | Possibly library versions: `requirements.txt` sets minimums, not exact versions, and the ML model is the one version-sensitive part. Not measured, so treat as a lead. | Match the reference run: scikit-learn 1.8.0, pandas 2.2.3, numpy 2.2.3. |
-| The upload "didn't stick" | An uploaded file is used for that one run only. Every later run reads `data/raw/` again. | To make new data permanent, put the file in `data/raw/`. |
-| Sidebar says "quick refresh" | The last run reused an older model selection. | Run the full pipeline (no `--quick`). |
 
 ---
 

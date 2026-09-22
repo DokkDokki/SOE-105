@@ -307,10 +307,6 @@ Full evidence for each is in [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md).
 | **Spikes** | Never removed from actuals. Capped at each product's own p99 while fitting only. |
 | **Monthly forecasts** | Kept fractional. They are expected demand, and rounding them deletes slow movers. The stock plan is where whole units belong. |
 
-`clean_data.py` in the project root is a teammate's standalone data-validation
-script (keys, nulls, types) that writes cleaned CSVs to a separate folder. It is not
-part of the forecast pipeline.
-
 ---
 
 ## Known limitations

@@ -55,10 +55,6 @@ Forecast quantity        : 174,514 units
 Forecast revenue         : THB 1,461,124,134
 ```
 
-> **The dashboard does not update when you `git pull`.** The results file it reads
-> (`outputs/dashboard_bundle.pkl`, 40 MB) is not stored in git. After every pull,
-> run `python run_pipeline.py` again, then refresh the browser.
-
 ---
 
 ## How the forecast is made

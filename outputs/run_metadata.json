@@ -1,6 +1,6 @@
 {
-  "run_at": "2026-09-21T10:31:40",
-  "runtime_seconds": 884.7,
+  "run_at": "2026-09-30T18:30:25",
+  "runtime_seconds": 381.1,
   "quick_mode": false,
   "selection_from_run": null,
   "fiscal_start_month": 4,
@@ -44,8 +44,8 @@
   "n_products": 5706,
   "n_customers": 2159,
   "n_products_forecast_nonzero": 2741,
-  "total_forecast_quantity": 174514.0,
-  "total_forecast_revenue": 1461124134.0,
+  "total_forecast_quantity": 176374.0,
+  "total_forecast_revenue": 1469636589.0,
   "n_price_tbd": 5,
   "n_price_variable": 1075,
   "realised_to_list_ratio": 0.8846936468460321,
@@ -53,10 +53,10 @@
   "default_billing_rate": 0.8540375928401035,
   "revenue_method_check": {
     "test_fiscal_year": 2024,
-    "actual_invoiced_revenue": 2024835276.24,
+    "actual_invoiced_revenue": 2024835276.2400002,
     "revenue_from_actual_qty_and_our_prices": 1609299028.1130362,
-    "error": -415536248.12696385,
-    "error_pct": -20.521977911141008
+    "error": -415536248.1269641,
+    "error_pct": -20.521977911141022
   },
   "vip_discount_question": {
     "applied": true,
@@ -65,62 +65,62 @@
     "vip_share_of_quantity": 0.6272477597126116,
     "average_price_multiplier": 0.8016549657934132
   },
-  "revenue_without_vip_discount": 1903775567.1726685,
-  "revenue_if_vip_discount_37pct": 1461124134.0,
+  "revenue_without_vip_discount": 1914182645.5785232,
+  "revenue_if_vip_discount_37pct": 1469636589.0,
   "intervals": {
     "overall_low_multiplier": 0.0,
-    "overall_median_multiplier": 0.9162624332402373,
-    "overall_high_multiplier": 4.028645534951157,
+    "overall_median_multiplier": 0.9110903558193486,
+    "overall_high_multiplier": 4.07623150684112,
     "quantiles": [
       0.1,
       0.9
     ],
     "portfolio_ratio_by_fold": {
-      "Fold 1": 0.6766980282275162,
-      "Fold 2": 1.2362360935436774
+      "Fold 1": 0.6769495749571154,
+      "Fold 2": 1.2270163675839
     },
-    "portfolio_low_multiplier": 0.6766980282275162,
-    "portfolio_high_multiplier": 1.2362360935436774,
+    "portfolio_low_multiplier": 0.6769495749571154,
+    "portfolio_high_multiplier": 1.2270163675839,
     "portfolio_basis": "The company-wide range comes from how the TOTAL actually landed in each hidden back-test year, not from adding up the per-product ranges. Per-product ranges must never be summed - that assumes every product has its worst year simultaneously.",
     "n_observations": 2343,
     "measurement_basis": "out-of-sample (models selected without Fold 2, measured on Fold 2 only)"
   },
-  "forecast_quantity_low": 118093.27969809677,
-  "forecast_quantity_high": 215740.5056286813,
-  "forecast_revenue_low": 988739820.4734372,
-  "forecast_revenue_high": 1806294391.5985487,
-  "forecast_quantity_low_if_summed": 79709.98999999999,
-  "forecast_quantity_high_if_summed": 513174.88,
+  "forecast_quantity_low": 119396.30433348627,
+  "forecast_quantity_high": 216413.78481624278,
+  "forecast_revenue_low": 994869864.2649748,
+  "forecast_revenue_high": 1803268149.103173,
+  "forecast_quantity_low_if_summed": 79549.98999999999,
+  "forecast_quantity_high_if_summed": 522306.23,
   "reconciliation": {
     "enabled": false,
     "judged_on": "combined score (accuracy + total-level bias)",
-    "score_bottom_up": 1.1438757554508172,
-    "score_reconciled": 1.4627511835798868,
-    "wape_bottom_up": 0.818038511480061,
-    "wape_reconciled": 1.0070801899164255,
-    "total_error_bottom_up_pct": 32.58372439707561,
-    "total_error_reconciled_pct": 45.56709936634611,
+    "score_bottom_up": 1.1455417703653596,
+    "score_reconciled": 1.4640941479650194,
+    "wape_bottom_up": 0.8237554398761082,
+    "wape_reconciled": 1.0099179511892906,
+    "total_error_bottom_up_pct": 32.17863304892516,
+    "total_error_reconciled_pct": 45.417619677572866,
     "folds": [
       {
         "fold": "Fold 1",
-        "wape_bottom_up": 1.0118017086877173,
-        "wape_reconciled": 1.3213196462574364,
-        "total_error_bottom_up_pct": 44.160213473010515,
-        "total_error_reconciled_pct": 86.47987970709521,
-        "combined_bottom_up": 1.4534038434178225,
-        "combined_reconciled": 2.1861184433283887
+        "wape_bottom_up": 1.0131412448670007,
+        "wape_reconciled": 1.3221483211924105,
+        "total_error_bottom_up_pct": 44.10939798054164,
+        "total_error_reconciled_pct": 86.51174086534348,
+        "combined_bottom_up": 1.454235224672417,
+        "combined_reconciled": 2.1872657298458456
       },
       {
         "fold": "Fold 2",
-        "wape_bottom_up": 0.6242753142724047,
-        "wape_reconciled": 0.6928407335754148,
-        "total_error_bottom_up_pct": 21.007235321140715,
-        "total_error_reconciled_pct": 4.654319025597013,
-        "combined_bottom_up": 0.8343476674838118,
-        "combined_reconciled": 0.7393839238313848
+        "wape_bottom_up": 0.6343696348852156,
+        "wape_reconciled": 0.6976875811861706,
+        "total_error_bottom_up_pct": 20.24786811730868,
+        "total_error_reconciled_pct": 4.323498489802249,
+        "combined_bottom_up": 0.8368483160583025,
+        "combined_reconciled": 0.740922566084193
       }
     ],
-    "reason": "Scaling product forecasts to Product Category 1 totals did not improve the combined score (accuracy + total-level bias) (1.144 as-is vs 1.463 scaled), so product forecasts are used exactly as the per-product models produced them."
+    "reason": "Scaling product forecasts to Product Category 1 totals did not improve the combined score (accuracy + total-level bias) (1.146 as-is vs 1.464 scaled), so product forecasts are used exactly as the per-product models produced them."
   },
   "tier_counts": {
     "D - No recent sales": 2485,
@@ -130,23 +130,23 @@
   },
   "model_counts": {
     "No forecast (no recent sales)": 3394,
-    "Average of last 6 months": 607,
-    "Average of last 3 months": 250,
-    "Machine learning (learns from all products in this dataset together)": 242,
+    "Average of last 6 months": 594,
+    "Machine learning (learns from all products in this dataset together)": 255,
+    "Average of last 3 months": 246,
     "Croston/SBA (for irregular demand)": 214,
-    "Straight-line trend": 194,
+    "Straight-line trend": 192,
     "Average of last 12 months": 173,
-    "Recent level x category seasonal pattern": 96,
-    "Average demand rate": 77,
-    "Exponential smoothing with damped trend": 75,
-    "Croston (for irregular demand)": 67,
-    "Long-run average": 67,
-    "TSB (irregular demand that may be fading out)": 61,
-    "Same month last year": 57,
-    "Exponential smoothing": 44,
+    "Recent level x category seasonal pattern": 97,
+    "Average demand rate": 78,
+    "Exponential smoothing with damped trend": 74,
+    "Long-run average": 72,
+    "Croston (for irregular demand)": 65,
+    "TSB (irregular demand that may be fading out)": 62,
+    "Same month last year": 56,
+    "Exponential smoothing": 46,
     "Same month, averaged over 2 years": 41,
-    "Recency-weighted average": 39,
-    "Repeat last month": 8
+    "Recency-weighted average": 40,
+    "Repeat last month": 7
   },
   "config_used": {
     "fiscal": {

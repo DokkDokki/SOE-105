@@ -1,0 +1,28 @@
+{
+  "actuals_file": "C:\\Users\\Doki\\Downloads\\TNIC Data_2025.xlsx",
+  "actuals_sha256": "df6e4e99d16ae57735c1031ddff005cadeddf56958121767e9704955eb6f56d4",
+  "repository_commit": "523dc6300ee9a722bbff0e2f3c5d41de879bc950",
+  "repository_forecast_sha256": "0903f675228a1e8d6849c9bcda8819f0d058ff0e8e608aa58ec595ffb528a797",
+  "local_forecast_sha256": "8d2ba930ad54896b919c2c0ed13388aa8b1046a9a29085cfad4761454d18b850",
+  "actual_rows": 71289,
+  "date_start": "2025-04-01",
+  "date_end": "2026-03-31",
+  "duplicate_rows_kept": 1726,
+  "product_code_mismatches": 0,
+  "scored_products": 6350,
+  "forecast_catalogue_products": 5706,
+  "actual_active_products": 3463,
+  "outside_catalogue_products": 644,
+  "outside_catalogue_units": 7164.0,
+  "zero_annual_forecast_actual_units": 10844.0,
+  "price_zero_rows": 1213,
+  "notes": [
+    "Demand includes all order statuses, consistent with config.yaml.",
+    "Exact duplicate lines retained, consistent with the established ERP-line policy.",
+    "Union of forecast and actual product IDs; absent product-month lines count as zero. Products outside the forecast catalogue are scored as zero forecast and reported separately.",
+    "MAPE excludes zero-actual cells, with excluded counts reported. WAPE includes these cells.",
+    "No retraining or recalibration uses FY2025 actuals.",
+    "Revenue accuracy is not scored: actual invoice revenue is absent and zero Base Price means unresolved price; VIP discount and billing definitions require reconciliation.",
+    "Repository forecast is the committed pre-actuals result. Local forecast was regenerated during setup and is a separately labelled sensitivity check."
+  ]
+}

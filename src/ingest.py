@@ -110,8 +110,17 @@ def _read_any(source: Any, sheet_hint: str | None = None) -> pd.DataFrame:
         xls = pd.ExcelFile(data)
         sheet = xls.sheet_names[0]
         if sheet_hint:
+            # One workbook may carry all three tables (the FY2025 release has
+            # sheets "FY25 - Sale Order History", "Company", "Item"), so match
+            # the sheet by what the table is called in practice, not only by
+            # the canonical table name.
+            aliases = {
+                "sales": ("sale", "order"),
+                "item": ("item", "product"),
+                "customer": ("customer", "company"),
+            }.get(_norm(sheet_hint), (_norm(sheet_hint),))
             for s in xls.sheet_names:
-                if _norm(sheet_hint) in _norm(s):
+                if any(a in _norm(s) for a in aliases):
                     sheet = s
                     break
         return pd.read_excel(xls, sheet_name=sheet)
@@ -160,10 +169,18 @@ def _coerce_types(df: pd.DataFrame, table: str, rep: LoadReport) -> pd.DataFrame
     df = df.copy()
 
     if "order_date" in df.columns:
-        parsed = pd.to_datetime(df["order_date"], errors="coerce", dayfirst=True)
-        # If day-first parsing produced many NaT, retry without the hint.
-        if parsed.isna().mean() > 0.5:
-            parsed = pd.to_datetime(df["order_date"], errors="coerce")
+        raw_dates = df["order_date"]
+        if pd.api.types.is_numeric_dtype(raw_dates):
+            # Excel serial dates (the FY2025 release stores 45748 for
+            # 2025-04-01). pd.to_datetime would read these as nanoseconds
+            # since 1970 and silently put every row in January 1970.
+            parsed = pd.to_datetime(raw_dates, unit="D", origin="1899-12-30",
+                                    errors="coerce")
+        else:
+            parsed = pd.to_datetime(raw_dates, errors="coerce", dayfirst=True)
+            # If day-first parsing produced many NaT, retry without the hint.
+            if parsed.isna().mean() > 0.5:
+                parsed = pd.to_datetime(raw_dates, errors="coerce")
         bad = int(parsed.isna().sum())
         if bad:
             rep.errors.append(f"{bad:,} rows have an unreadable order date and were dropped.")
@@ -245,7 +262,40 @@ def load_all(
     on_disk = find_source_files(folder) if folder else {}
 
     for table in ("sales", "item", "customer"):
-        src = uploads.get(table) or on_disk.get(table)
+        up, disk = uploads.get(table), on_disk.get(table)
+
+        # An upload EXTENDS the history on disk rather than replacing it: the
+        # monthly rhythm is "upload the newest extract", and a 12-month extract
+        # on its own leaves nothing to back-test against. Months present in the
+        # upload override the same months on disk; earlier months are kept.
+        # Master lists are unioned, with the uploaded record winning.
+        if up is not None and disk is not None:
+            new_df, rep = load_table(up, table)
+            old_df, _ = load_table(disk, table)
+            if table == "sales" and "order_date" in new_df and "order_date" in old_df:
+                new_m = pd.to_datetime(new_df["order_date"], errors="coerce").dt.to_period("M")
+                old_m = pd.to_datetime(old_df["order_date"], errors="coerce").dt.to_period("M")
+                keep_old = old_df.loc[~old_m.isin(set(new_m.dropna()))]
+                merged = pd.concat([keep_old, new_df], ignore_index=True)
+                rep.rows = len(merged)
+                rep.source = (f"{rep.source} (+ {len(keep_old):,} earlier rows "
+                              f"from {Path(str(getattr(disk, 'name', disk))).name})")
+                tables[table] = merged
+            elif table in ("item", "customer"):
+                key = "item_id" if table == "item" else "customer_id"
+                if key in new_df and key in old_df:
+                    merged = pd.concat([old_df, new_df], ignore_index=True)
+                    merged = merged.drop_duplicates(subset=key, keep="last")
+                    rep.rows = len(merged)
+                    tables[table] = merged
+                else:
+                    tables[table] = new_df
+            else:
+                tables[table] = new_df
+            reports.append(rep)
+            continue
+
+        src = up or disk
         if src is None:
             rep = LoadReport(table=table, source="(not provided)", rows=0)
             if table == "sales":

@@ -486,9 +486,14 @@ mitsubishi-forecast/
 
 **Monthly.** Open the dashboard → *Data Upload & Refresh* → choose the newer sales
 file → *Generate forecast*. The page shows how every column was matched before
-anything runs and refuses a file missing an essential column. Only the sales file is
-required; the item and customer masters are reused. An upload drives that one run.
-To make the new file the permanent input, place it in `data/raw/`.
+anything runs and refuses a file missing an essential column. An uploaded sales
+file **extends** the history on disk: its months replace the same months on disk
+and earlier months are kept, so a 12-month extract is enough. Uploaded item and
+customer masters are merged into the existing ones, with the uploaded record
+winning. A workbook that carries all three tables as sheets (as the FY2025 release
+does) can be uploaded in all three slots; the right sheet is picked by name. An
+upload drives that one run; to make the new data the permanent input, place the
+file in `data/raw/`.
 
 **Quick refresh.** Ticking *Quick refresh* (or `python run_pipeline.py --quick`)
 reuses the model selection and accuracy evidence from the last full run and refits on

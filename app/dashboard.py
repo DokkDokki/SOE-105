@@ -1022,14 +1022,23 @@ elif page == "Accuracy & Performance Metrics":
                 x=list(mx) + list(mx)[::-1], y=list(hi) + list(lo)[::-1],
                 fill="toself", fillcolor="rgba(234,88,12,0.16)", line=dict(width=0),
                 hoverinfo="skip", name="Published range"))
+        hx, hy = to_ts(hist_tot["month"]), hist_tot["quantity"]
         fig.add_trace(go.Scatter(
-            x=to_ts(hist_tot["month"]), y=hist_tot["quantity"], name="History (to Mar 2025)",
+            x=hx, y=hy, name="History (to Mar 2025)",
             mode="lines+markers", line=dict(color=HIST_COLOUR, width=2.5), marker=dict(size=5)))
+        # Both FY2025 series continue from the last month of history, so they
+        # are drawn from that point: the actual as one unbroken real series,
+        # the forecast with the same dotted bridge the Overview uses.
+        last_x, last_y = list(hx)[-1], float(list(hy)[-1])
+        fig.add_trace(go.Scatter(
+            x=[last_x, mx.iloc[0]], y=[last_y, fcm[0]], mode="lines",
+            line=dict(color=FCST_COLOUR, width=2.5, dash="dot"), showlegend=False, hoverinfo="skip"))
         fig.add_trace(go.Scatter(
             x=mx, y=fcm, name="Forecast", mode="lines+markers",
             line=dict(color=FCST_COLOUR, width=2.5, dash="dash"), marker=dict(size=6)))
+        act_m = A.sum(axis=0).reindex(vmonths).to_numpy()
         fig.add_trace(go.Scatter(
-            x=mx, y=A.sum(axis=0).reindex(vmonths).to_numpy(), name="Actual FY2025",
+            x=[last_x] + list(mx), y=[last_y] + list(act_m), name="Actual FY2025",
             mode="lines+markers", line=dict(color=ACTUAL_COLOUR, width=3), marker=dict(size=7)))
         fig.add_vrect(x0=mx.iloc[0], x1=mx.iloc[-1], fillcolor=FCST_COLOUR, opacity=0.06, line_width=0)
         st.plotly_chart(base_chart(fig, 440, "Units"), use_container_width=True)

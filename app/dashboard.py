@@ -993,11 +993,25 @@ elif page == "Accuracy & Performance Metrics":
               .reindex(index=A.index, columns=vmonths).fillna(0.0))
         vids = A.index
         A_tot, F_tot = float(A.values.sum()), float(Fm.values.sum())
-        last_fy = max(meta["history_fiscal_years"])
-        ly_qty = float(hist_tot.loc[hist_tot["fiscal_year"] == last_fy, "quantity"].sum())
+        # Once FY2025 itself has been loaded as history (after an upload), the
+        # history table runs past the validation window. Everything in this
+        # section compares the FROZEN forecast with the actuals, so the history
+        # it shows and the "last year" it compares against stop at the month
+        # before the validation window, whatever the current run contains.
+        first_v = pd.Timestamp(vmonths[0])
+        hist_pre = hist_tot.loc[to_ts(hist_tot["month"]) < first_v]
+        last_fy = int(hist_pre["fiscal_year"].max())
+        ly_qty = float(hist_pre.loc[hist_pre["fiscal_year"] == last_fy, "quantity"].sum())
         q_lo, q_hi = meta.get("forecast_quantity_low"), meta.get("forecast_quantity_high")
         new_mask = prod.set_index("item_id")["outside_forecast_catalogue"].reindex(vids).fillna(True)
         new_units = float(A.sum(axis=1)[new_mask.astype(bool)].sum())
+        # The published range belongs to the frozen forecast. q_lo/q_hi come
+        # from the current run, which is right only while that run IS the
+        # FY2025 forecast; after an upload it is FY2026 and its range would
+        # show here by mistake. These are the FY2025 values from
+        # run_metadata.json at the scored commit (523dc63).
+        if FY != 2025:
+            q_lo, q_hi = 118093.28, 215740.51
 
         k1, k2, k3, k4 = st.columns(4)
         k1.metric("Actual demand, FY2025", units(A_tot),
@@ -1025,9 +1039,9 @@ elif page == "Accuracy & Performance Metrics":
                 x=list(mx) + list(mx)[::-1], y=list(hi) + list(lo)[::-1],
                 fill="toself", fillcolor="rgba(234,88,12,0.16)", line=dict(width=0),
                 hoverinfo="skip", name="Published range"))
-        hx, hy = to_ts(hist_tot["month"]), hist_tot["quantity"]
+        hx, hy = to_ts(hist_pre["month"]), hist_pre["quantity"]
         fig.add_trace(go.Scatter(
-            x=hx, y=hy, name="History (to Mar 2025)",
+            x=hx, y=hy, name=f"History (to {list(hx)[-1]:%b %Y})",
             mode="lines+markers", line=dict(color=HIST_COLOUR, width=2.5), marker=dict(size=5)))
         # Both FY2025 series continue from the last month of history, so they
         # are drawn from that point: the actual as one unbroken real series,
@@ -1082,7 +1096,7 @@ elif page == "Accuracy & Performance Metrics":
         # ---- against simple plans and the market scenario ----
         st.markdown("**Against the simple plans, and the published market scenario**")
         hi_ = hist_item.copy(); hi_["month"] = hi_["month"].astype(str)
-        fy24 = (hi_[hi_["month"] >= f"{last_fy}-04"]
+        fy24 = (hi_[(hi_["month"] >= f"{last_fy}-04") & (hi_["month"] < vmonths[0])]
                 .pivot_table(index="item_id", columns="month", values="quantity", aggfunc="sum")
                 .fillna(0.0))
         fy24 = fy24.reindex(vids).fillna(0.0)

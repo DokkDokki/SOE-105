@@ -96,7 +96,8 @@ Who won, across 5,706 products:
 
 | Method | Products |
 |---|---|
-| Forecast zero | 3,394 |
+| No forecast: dormant, no FY2024 sales | 2,485 |
+| Too new to back-test (zero + safeguard floor) | 909 |
 | Average of last 6 / 3 / 12 months | 607 / 250 / 173 |
 | Machine learning (pooled gradient boosting) | 242 |
 | Croston/SBA, Croston, TSB | 214 / 67 / 61 |
@@ -104,9 +105,11 @@ Who won, across 5,706 products:
 | Recent level × category seasonal pattern | 96 |
 | Everything else (8 methods) | 408 |
 
-"Forecast zero" is the 2,485 dormant products plus about 900 rare ones whose best
-back-tested forecast was zero. A safeguard then lifts any that sold in the last 12
-months, which leaves **2,741 products with a non-zero forecast**.
+The 2,485 dormant products never enter the tournament: no sales in FY2024 means a
+zero forecast by rule. The 909 "too new" products did sell in FY2024 but had no
+history at the back-test cut-offs, so no method could be tested on them. They start
+from zero and the shortage safeguard lifts any that sold in the last 12 months. That
+leaves **2,741 products with a non-zero forecast**.
 
 ### The selection score is not plain accuracy
 

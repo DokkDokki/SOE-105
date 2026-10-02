@@ -216,7 +216,8 @@ def run_pipeline(
     # The back-test assigned tiers from the training window only (to avoid
     # leakage). For reporting, use the tier based on the full history so the
     # dashboard and the forecast files agree with the product profile.
-    selection["backtest_tier"] = selection["tier"]
+    if "backtest_tier" not in selection.columns:   # quick mode already has it
+        selection["backtest_tier"] = selection["tier"]
     selection["tier"] = selection["item_id"].map(res.profile["tier"]).fillna(
         selection["tier"])
 
@@ -228,6 +229,17 @@ def run_pipeline(
     selection.loc[m, "selection_reason"] = (
         f"no sales at all in FY{last_fy} - forecast as zero until the business "
         "confirms it is returning")
+    # Products that first sold AFTER the back-test training years were dormant
+    # at every fold cut, so the tournament had nothing to test and "zero" is
+    # the only entry they carry. They are not dormant now, so say so: the
+    # shortage safeguard lifts those that sold in the last 12 months.
+    new_since = (selection["model"].eq("zero") & ~m
+                 & selection["backtest_tier"].eq(FE.TIER_DORMANT))
+    selection.loc[new_since, "model_plain"] = MOD.TOO_NEW_LABEL
+    selection.loc[new_since, "selection_reason"] = (
+        "first sold after the back-test years, so no method could be tested - "
+        "starts from zero; the shortage safeguard lifts it if it sold in the "
+        "last 12 months")
     # Ensemble policy annotation, so the per-product rationale stays truthful.
     if cfg["models"].get("ensemble_top_k", 1) >= 2 and "runner_up" in selection.columns:
         bl = ((selection["runner_up"].fillna("").astype(str) != "")

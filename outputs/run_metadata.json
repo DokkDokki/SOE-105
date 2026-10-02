@@ -1,8 +1,8 @@
 {
-  "run_at": "2026-10-02T14:59:59",
-  "runtime_seconds": 898.8,
-  "quick_mode": false,
-  "selection_from_run": null,
+  "run_at": "2026-10-02T15:53:07",
+  "runtime_seconds": 45.6,
+  "quick_mode": true,
+  "selection_from_run": "2026-10-02T14:59:59",
   "fiscal_start_month": 4,
   "ensemble_top_k": 1,
   "fiscal_year_label": "Apr-Mar",
@@ -129,7 +129,8 @@
     "A - Regular seller": 932
   },
   "model_counts": {
-    "No forecast (no recent sales)": 3394,
+    "No forecast (no recent sales)": 2485,
+    "Too new to back-test (zero + safeguard floor)": 909,
     "Average of last 6 months": 607,
     "Average of last 3 months": 250,
     "Machine learning (learns from all products in this dataset together)": 242,
@@ -198,19 +199,7 @@
       ],
       "bias_weight": 1.0,
       "allow_incomplete_fold_models": false,
-      "incomplete_fold_penalty": 0.1,
-      "_resolved_folds": [
-        {
-          "name": "Fold 1",
-          "train_end_fy": 2022,
-          "test_fy": 2023
-        },
-        {
-          "name": "Fold 2",
-          "train_end_fy": 2023,
-          "test_fy": 2024
-        }
-      ]
+      "incomplete_fold_penalty": 0.1
     },
     "models": {
       "enable_holt_winters": true,

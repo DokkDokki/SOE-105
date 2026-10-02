@@ -1002,7 +1002,10 @@ elif page == "Accuracy & Performance Metrics":
         k1, k2, k3, k4 = st.columns(4)
         k1.metric("Actual demand, FY2025", units(A_tot),
                   f"{(A_tot / ly_qty - 1) * 100:+.1f}% vs FY{last_fy}" if ly_qty else None)
-        k2.metric("Forecast (frozen)", units(F_tot), f"{(F_tot / A_tot - 1) * 100:+.1f}% vs actual")
+        k2.metric("Forecast (frozen)", units(F_tot), f"{(F_tot / A_tot - 1) * 100:+.1f}% vs actual",
+                  help="The monthly plan as scored. It sums to 174,428 while the published "
+                       "annual headline was 174,514: each month is rounded to two decimals "
+                       "in the file, which drifts the sum by 86 units across 2,741 products.")
         if q_lo and q_hi:
             inside = q_lo <= A_tot <= q_hi
             k3.metric("Published range", f"{units(q_lo)} – {units(q_hi)}",

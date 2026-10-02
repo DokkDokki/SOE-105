@@ -394,6 +394,9 @@ def models_for_tier(tier: str, registry: dict[str, Callable]) -> list[str]:
     return list(BASELINE_MODELS)
 
 
+# Label for products too new for the tournament (see pipeline.run_pipeline).
+TOO_NEW_LABEL = "Too new to back-test (zero + safeguard floor)"
+
 PLAIN_ENGLISH_NAMES = {
     "zero": "No forecast (no recent sales)",
     "naive": "Repeat last month",

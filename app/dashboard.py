@@ -203,6 +203,11 @@ PAGES = ["Overview", "Product Analysis", "Customer Analysis",
          "Accuracy & Performance Metrics",
          "Data Upload & Refresh",
          "Downloads & Exports"]
+# The actuals page exists only once the FY2025 validation has been run
+# (validate_fy2025.py writes outputs/fy2025_validation/).
+if (OUTPUTS / "fy2025_validation" / "monthly_comparison.csv").exists():
+    PAGES.insert(PAGES.index("Accuracy & Performance Metrics") + 1,
+                 "FY2025 Actuals vs Forecast")
 
 # The chosen page is kept in the URL so a link to a specific screen can be
 # shared with the team (e.g. .../?page=How+accurate+is+this%3F).
@@ -967,6 +972,109 @@ elif page == "Shock Simulator":
         .to_csv(index=False).encode("utf-8-sig"),
         file_name=f"FY{FY}_shock_impact_{shock_pct*100:+.0f}pct_{factor:.2f}x.csv",
         mime="text/csv")
+
+
+elif page == "FY2025 Actuals vs Forecast":
+    st.title("FY2025 Actuals vs Forecast")
+    vdir = OUTPUTS / "fy2025_validation"
+    mon = pd.read_csv(vdir / "monthly_comparison.csv")
+    acc = pd.read_csv(vdir / "accuracy_summary.csv")
+    cat = pd.read_csv(vdir / "category_accuracy.csv")
+    prod = pd.read_csv(vdir / "product_year_comparison.csv")
+    st.caption("The forecast committed before the actuals were released, scored "
+               "against the FY2025 order history by validate_fy2025.py. Nothing "
+               "was retrained. Revenue is not scored: the release carries no "
+               "invoice amounts.")
+
+    A = float(mon["actual_units"].sum())
+    F = float(mon["repository_forecast_units"].sum())
+    last_fy = max(meta["history_fiscal_years"])
+    ly_qty = float(hist_tot.loc[hist_tot["fiscal_year"] == last_fy, "quantity"].sum())
+    q_lo, q_hi = meta.get("forecast_quantity_low"), meta.get("forecast_quantity_high")
+    new_units = float(prod.loc[prod["outside_forecast_catalogue"], "actual_units"].sum())
+
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Actual demand, FY2025", units(A),
+              f"{(A / ly_qty - 1) * 100:+.1f}% vs FY{last_fy}" if ly_qty else None)
+    k2.metric("Forecast (frozen)", units(F), f"{(F / A - 1) * 100:+.1f}% vs actual")
+    if q_lo and q_hi:
+        inside = q_lo <= A <= q_hi
+        k3.metric("Published range", f"{units(q_lo)} – {units(q_hi)}",
+                  "actual inside" if inside else "actual above the range",
+                  delta_color="normal" if inside else "inverse")
+    k4.metric("New products (not forecastable)", units(new_units),
+              f"{int(prod['outside_forecast_catalogue'].sum())} products", delta_color="off")
+
+    # ---------------- monthly: history, actual, forecast + range ----------------
+    ACTUAL_COLOUR = "#15803D"
+    mx = pd.to_datetime(mon["month"].astype(str))
+    fcm = mon["repository_forecast_units"]
+    fig = go.Figure()
+    if q_lo and q_hi and F:
+        lo = fcm * (q_lo / F); hi = fcm * (q_hi / F)
+        fig.add_trace(go.Scatter(
+            x=list(mx) + list(mx)[::-1], y=list(hi) + list(lo)[::-1],
+            fill="toself", fillcolor="rgba(234,88,12,0.16)", line=dict(width=0),
+            hoverinfo="skip", name="Published range"))
+    fig.add_trace(go.Scatter(
+        x=to_ts(hist_tot["month"]), y=hist_tot["quantity"], name="History (to Mar 2025)",
+        mode="lines+markers", line=dict(color=HIST_COLOUR, width=2.5), marker=dict(size=5)))
+    fig.add_trace(go.Scatter(
+        x=mx, y=fcm, name="Forecast", mode="lines+markers",
+        line=dict(color=FCST_COLOUR, width=2.5, dash="dash"), marker=dict(size=6)))
+    fig.add_trace(go.Scatter(
+        x=mx, y=mon["actual_units"], name="Actual FY2025", mode="lines+markers",
+        line=dict(color=ACTUAL_COLOUR, width=3), marker=dict(size=7)))
+    fig.add_vrect(x0=mx.iloc[0], x1=mx.iloc[-1], fillcolor=FCST_COLOUR, opacity=0.06, line_width=0)
+    st.plotly_chart(base_chart(fig, 460, "Units"), use_container_width=True)
+
+    # ---------------- against the simple plans ----------------
+    st.subheader("Against the Simple Plans")
+    order = ["Repository frozen forecast", "FY2024 annual average", "Repeat FY2024 by month"]
+    names = {"Repository frozen forecast": "This forecast",
+             "FY2024 annual average": "FY2024 held flat",
+             "Repeat FY2024 by month": "Repeat FY2024 by month"}
+    tbl = (acc[acc["forecast"].isin(order)]
+           .pivot(index="forecast", columns="level", values="WAPE_pct")
+           .reindex(order).rename(index=names))
+    tbl = tbl[[c for c in ("Product-month", "Product-year", "Company-month") if c in tbl.columns]]
+    tbl.columns = [f"{c} WAPE %" for c in tbl.columns]
+    tbl.insert(0, "Total units", acc[acc["forecast"].isin(order)]
+               .drop_duplicates("forecast").set_index("forecast")["forecast_units"]
+               .reindex(order).rename(index=names).round(0))
+    st.dataframe(tbl.round(1).reset_index().rename(columns={"forecast": "Plan"}),
+                 use_container_width=True, hide_index=True)
+    st.caption("Lower WAPE is better. The allocation across products beat both naive "
+               "plans; the company-level total did not, because the flat plan's total "
+               "happened to sit closer to the actual.")
+
+    # ---------------- by category ----------------
+    st.subheader("By Product Category")
+    ct = cat.sort_values("actual_units", ascending=False).head(10)[
+        ["category", "actual_units", "forecast_units", "bias_pct", "WAPE_pct"]].rename(columns={
+            "category": "Category", "actual_units": "Actual units",
+            "forecast_units": "Forecast units", "bias_pct": "Bias %", "WAPE_pct": "WAPE %"})
+    st.dataframe(ct, use_container_width=True, hide_index=True, column_config={
+        "Actual units": st.column_config.NumberColumn(format="%.0f"),
+        "Forecast units": st.column_config.NumberColumn(format="%.0f"),
+        "Bias %": st.column_config.NumberColumn(format="%.1f%%"),
+        "WAPE %": st.column_config.NumberColumn(format="%.1f%%")})
+
+    # ---------------- largest misses ----------------
+    st.subheader("Largest Annual Misses")
+    pm = prod.nlargest(15, "absolute_annual_error_units")[
+        ["product_code", "category", "actual_units", "repository_forecast_units",
+         "repository_error_units", "outside_forecast_catalogue"]].rename(columns={
+            "product_code": "Product", "category": "Category", "actual_units": "Actual",
+            "repository_forecast_units": "Forecast", "repository_error_units": "Error (forecast − actual)",
+            "outside_forecast_catalogue": "New product"})
+    st.dataframe(pm, use_container_width=True, hide_index=True, column_config={
+        "Actual": st.column_config.NumberColumn(format="%.0f"),
+        "Forecast": st.column_config.NumberColumn(format="%.0f"),
+        "Error (forecast − actual)": st.column_config.NumberColumn(format="%.0f")})
+    st.download_button("Download the full product comparison (CSV)",
+                       prod.to_csv(index=False).encode("utf-8-sig"),
+                       file_name="FY2025_product_year_comparison.csv", mime="text/csv")
 
 
 elif page == "Accuracy & Performance Metrics":

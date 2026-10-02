@@ -1,8 +1,8 @@
 Decision level,Decision supported,WAPE,Accuracy %,Test year
-"Individual product, individual month",Reordering a single product for a single month,0.6326725323878836,36.7,FY2024
-"Individual product, quarter",Quarterly purchasing for a single product,0.46456575151722784,53.5,FY2024
-"Individual product, full year",Annual volume commitment for a single product,0.26935008312760866,73.1,FY2024
-"Product category, month",Monthly capacity and warehouse planning per category,0.2658250851874545,73.4,FY2024
-"Product category, quarter",Quarterly category budgets,0.21807712280770752,78.2,FY2024
-"Whole company, month",Monthly cash-flow and headcount planning,0.20883102990457836,79.1,FY2024
-"Whole company, full year",The annual revenue budget,0.20040577416511063,80.0,FY2024
+"Individual product, individual month",Reordering a single product for a single month,0.6220111743887621,37.8,FY2024
+"Individual product, quarter",Quarterly purchasing for a single product,0.4551220077836321,54.5,FY2024
+"Individual product, full year",Annual volume commitment for a single product,0.27690287975287264,72.3,FY2024
+"Product category, month",Monthly capacity and warehouse planning per category,0.25864009262553805,74.1,FY2024
+"Product category, quarter",Quarterly category budgets,0.2191602732588954,78.1,FY2024
+"Whole company, month",Monthly cash-flow and headcount planning,0.21009849795416338,79.0,FY2024
+"Whole company, full year",The annual revenue budget,0.2063690684579392,79.4,FY2024

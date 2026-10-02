@@ -569,6 +569,12 @@ selection* logic (recent vs historical vs list), **not** whether `Base Price` eq
 the amount actually invoiced. There is no invoice-amount column in the data, so no
 internal check can resolve this.
 
+*Correction 2026-10-02.* After the discount was applied, the dashboard's pricing
+check (`revenue_method_check`) had been reconstructing FY2024 with the *discounted*
+prices against the Base-Price invoice total, so it displayed a spurious **−20.5%**
+variance that was really the discount itself. The check now uses the pre-discount
+prices, as the +2.3% figure above always did. Same basis on both sides.
+
 **Earlier default (2026-08-04 to 2026-08-16): nothing applied**, with the sensitivity
 published. Superseded by the team decision above: applied at 37%, per product in
 proportion to that product's VIP sales share. (The exposure table above uses the

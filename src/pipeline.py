@@ -301,6 +301,11 @@ def run_pipeline(
     # the dashboard can show the other figure whichever setting is active.
     _sens_cfg = {"pricing": {**cfg.get("pricing", {}), "vip_discount": 0.37}}
     vip_sens_mult, _ = PR.vip_discount_adjustment(sales, customers, _sens_cfg)
+    # The invoice history is recorded in Base-Price terms, so the pricing
+    # check must use the prices BEFORE the VIP discount - otherwise it compares
+    # discounted prices against undiscounted invoices and reports a spurious
+    # ~-20% "error" that is really the discount itself.
+    prices_base = prices
     if vip_summary.get("applied"):
         prices = prices.copy()
         prices["unit_price"] = prices["unit_price"] * prices["item_id"].map(vip_mult).fillna(1.0)
@@ -310,7 +315,7 @@ def run_pipeline(
     # Validate the pricing half of the revenue calculation on the last known
     # year, so any price/mix bias is visible rather than buried in the total.
     revenue_check = PR.backtest_revenue_method(
-        sales, prices, rates, default_rate, test_fy=last_fy)
+        sales, prices_base, rates, default_rate, test_fy=last_fy)
 
     # Attach product attributes for filtering in the dashboard.
     if not items.empty:

@@ -272,6 +272,53 @@ matters, exactly as documented before the actuals arrived.
 Revenue is not scored: the release carries no invoice amounts, and 1,213 lines have
 a zero Base Price (quoted per order), so no like-for-like revenue actual exists.
 
+### FY2026 preview: the same pipeline on five years
+
+This is a preview, not the deliverable. The FY2025 forecast above is frozen and
+graded; nothing here changes it. The run exists to answer one question the actuals
+raised: what does the system do once FY2025 is history? It ran on 2 October 2026
+with the FY2025 release supplied through the upload path (so `data/raw/` is
+untouched) and the back-test set to `folds: auto`. Results are in
+`outputs/fy2026_preview/`.
+
+| | FY2025 run (delivered) | FY2026 preview |
+|---|---|---|
+| History | FY2021–FY2024, 48 months | FY2021–FY2025, 60 months |
+| Products | 5,706 | 6,350 (644 new) |
+| Hidden test years | FY2023, FY2024 | FY2024, FY2025 |
+| Fold weights | 0.35 / 0.65 | 1/3 / 2/3 (automatic) |
+| Seasonal models | locked (too little history) | unlocked, win 63 products |
+| Forecast | 174,514 units | 227,314 units |
+| Revenue, net of VIP discount | ฿1,461.1m | ฿1,698.5m |
+
+What the preview shows:
+
+- **The back-test reproduces the real miss.** With FY2025 as a hidden fold the
+  system forecasts it 25.3% low (WAPE 0.677). Graded for real, the delivered
+  forecast was 24.5% low. The harness measures what actually happens; it was never
+  the harness that was optimistic.
+- **It still beats the simple plans on the new year.** On FY2025, WAPE 0.677 against
+  0.777 for last year's total spread evenly and 0.925 for same-month-last-year. On
+  FY2024, 0.626 against 0.679 and 0.833.
+- **The decision ladder holds.** Company-year accuracy 74.7%, product-year 69.4%,
+  product-month 32.3%.
+- **The seasonal models unlock and win where they should.** SARIMA takes 39 products
+  and Holt-Winters 24, out of 2,371 with a non-zero back-tested forecast. The
+  tournament did not need to be told; a fifth year was enough.
+- **The FY2026 point is flat again: 227,314 units, 1.1% below FY2025.** The models
+  carry the recent level forward, as designed and as documented. This is the
+  turning-point lag in its fourth year, and the reason the lesson above is "move the
+  number when the independent routes agree" rather than "add a model".
+- **The company range now sits entirely above the point: 281,600–291,200.** The
+  range is built from how the total landed in each hidden year, and both hidden
+  years landed above. The system is reporting its own level bias through the range.
+  Two observations is too few to make the width credible; the direction is the
+  message. Treating that as a level adjustment is the first thing to test when
+  FY2026 actuals arrive.
+
+Runtime was 94 minutes, with another run competing for the CPU. Expect a five-year
+full run with seasonal models to take well over the 20 minutes quoted for four.
+
 ---
 
 ## Inventory planning
@@ -443,6 +490,7 @@ sales review of the top ~50 products, and the FY2025 actuals.
 | `prediction_interval_multipliers.csv` | The measured multipliers behind every range. |
 | `run_metadata.json` | Full record of the run, including every setting. |
 | `fy2025_validation/` | The frozen forecast scored against the released FY2025 actuals (`validate_fy2025.py`). |
+| `fy2026_preview/` | Preview only: the pipeline on five years with FY2025 as a hidden fold, and a first FY2026 forecast. Not the deliverable. |
 
 The recommended stock plan is downloaded from the Inventory Planning page, since it
 depends on the service level chosen there.

@@ -700,6 +700,59 @@ statement that above ~90% the buffer, not the forecast, sets the stock.
 
 ---
 
+## 24. FY2026 preview — the pipeline on five years (not the deliverable)
+
+Run 2026-10-02. The FY2025 release was supplied through the upload path (which
+extends the disk history by month; `data/raw/` untouched), `backtest.folds: auto`,
+`fold_weights: []`. Outputs in `outputs/fy2026_preview/`. The FY2025 forecast in
+`outputs/` is frozen and unchanged.
+
+**Resolved automatically:** history 2021-04 → 2026-03 (60 months); folds "Test
+FY2024" (train through FY2023) and "Test FY2025" (train through FY2024); weights
+1/3 and 2/3; 6,350 products of which 2,869 receive a non-zero forecast.
+
+**Back-test as delivered (same scoring as §11):**
+
+| Fold | Actual | Forecast | Total error | WAPE | Flat last-year | Seasonal naive |
+|---|---|---|---|---|---|---|
+| Test FY2024 | 187,437 | 149,444 | −20.3% | 0.626 | 0.679 | 0.833 |
+| Test FY2025 | 229,914 | 171,850 | −25.3% | 0.677 | 0.777 | 0.925 |
+
+The FY2025 fold reproduces the graded outcome (§23: −24.5%). The FY2025 actual
+counts 229,914 here against 231,080 in the validation because the pipeline's
+standard cleaning and master-list reconciliation applies (0.5% of units).
+
+**Decision ladder on the new folds:** product-month 32.3%, product-quarter 50.0%,
+product-year 69.4%, category-month 66.4%, category-quarter 71.5%, company-month
+74.4%, company-year 74.7%.
+
+**Seasonal models unlocked** (§16 lock lifts at a third full year): SARIMA wins 39
+products (24 + 11 + 4 across the three specifications), Holt-Winters 24
+(13 additive, 5 seasonal-only, 4 damped, 2 multiplicative). Nothing in the
+configuration changed; the tier rules admitted them once the history allowed.
+
+**FY2026 forecast:** 227,314 units, ฿1,698.5m net of the VIP discount
+(฿2,205.8m undiscounted). That is 1.1% below the FY2025 actual inside the
+pipeline: the fourth consecutive year the level-carrying design projects a flat
+year into a market that has turned every year.
+
+**Known quirk, deliberately not patched:** the company range is 281,637–291,238,
+entirely above the point forecast. §8 builds that range from the ratio of actual
+to forecast in each hidden year (min and max). Both hidden years landed above, so
+both multipliers exceed one. The range is doing its job — it reports the measured
+level bias — but a point outside its own range reads as a defect on the Overview
+page. Options, to be scored before adoption and listed in IDEAS: (a) apply the
+median fold ratio as a level adjustment and rebuild the range around it; (b) widen
+the range to include the point; (c) show the bias as its own number. None was
+applied here because the only evidence is two folds that agree, and the preview
+is not a delivered forecast.
+
+**Runtime:** 5,618 s (94 min) with a quick-refresh run competing for the CPU.
+Five years plus seasonal models is materially slower than the 20-minute four-year
+run; budget for it before putting FY2025 into `data/raw/`.
+
+---
+
 ## 15. What could still go wrong
 
 1. **A market turning point in FY2025.** Nothing in the *supplied data* explains why

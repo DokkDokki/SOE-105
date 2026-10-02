@@ -8,11 +8,15 @@ The business problem it answers: the company has **stock surplus and stock short
 at the same time**, so it cannot supply customers just-in-time. Too much of what does
 not sell, too little of what does.
 
-| | FY2024 actual | **FY2025 forecast** | Likely range |
-|---|---|---|---|
-| Demand | 191,592 units | **174,514 units** (−8.9%) | 118,093 – 215,741 |
-| Revenue, net of VIP discount | — | **฿1,461.1m** | ฿988.7m – ฿1,806.3m |
-| Revenue, Base-Price terms | ฿2,024.8m | ฿1,903.8m (−6.0%) | — |
+| | FY2024 actual | **FY2025 forecast** | Likely range | **FY2025 actual** |
+|---|---|---|---|---|
+| Demand | 191,592 units | **174,514 units** (−8.9%) | 118,093 – 215,741 | **231,080 units** (+20.6%) |
+| Revenue, net of VIP discount | — | **฿1,461.1m** | ฿988.7m – ฿1,806.3m | not scored (see below) |
+| Revenue, Base-Price terms | ฿2,024.8m | ฿1,903.8m (−6.0%) | — | — |
+
+The FY2025 actuals were released on 30 September 2026. The forecast was **24.5% low**
+and the actual landed **above the published range**. The full result, and what it
+teaches, is in [FY2025 actuals: what really happened](#fy2025-actuals-what-really-happened).
 
 Two revenue lines because the history is recorded at Base Price while VIP customers
 pay 37% less; see [Revenue](#revenue-and-the-two-revenue-numbers). Every number
@@ -176,6 +180,94 @@ years; 5 were adopted and the rest are documented in
 
 MAPE is reported because it was requested, but it is undefined whenever an actual
 is zero, which is most of this catalogue. Judge the forecast on WAPE, MASE and total error.
+
+---
+
+## FY2025 actuals: what really happened
+
+Mitsubishi released the FY2025 order history on 30 September 2026 (71,289 lines,
+1 Apr 2025 – 31 Mar 2026). The forecast committed before the release was scored
+against it by `validate_fy2025.py`, with nothing retrained. Full outputs are in
+`outputs/fy2025_validation/`.
+
+| | Units | vs FY2024 |
+|---|---|---|
+| **Actual FY2025** | **231,080** | **+20.6%** |
+| Forecast (frozen at commit `523dc63`) | 174,428 | −8.9% |
+| Published range | 118,093 – 215,741 | |
+| Market cross-check scenario | 211,000 | +10.1% |
+
+**The forecast was 24.5% low, and the actual fell outside the range on the high
+side.** Removing the 644 products that did not exist when the forecast was made
+(7,164 units) leaves 223,916, still above the range. The market scenario was the
+closest number we published and was still 8.7% low.
+
+### Against the simple plans, same products, same year
+
+| Level | This forecast | FY2024 held flat | Repeat FY2024 by month |
+|---|---|---|---|
+| Product × month (WAPE) | **75.7%** | 79.3% | 94.1% |
+| Product × year (WAPE) | **47.3%** | 49.7% | 49.7% |
+| Company × month (WAPE) | 24.7% | **21.5%** | 31.7% |
+
+The method still allocates demand across products better than either naive plan.
+At the company level the flat plan won, only because its total (191,592) happened
+to sit closer to 231,080. The miss is the **total**, not the allocation.
+
+### Where the 56,651 missing units came from
+
+| Source | Under-forecast | Share of the gap |
+|---|---|---|
+| Products that sold in FY2024 and were forecast | 45,808 | 80.9% |
+| — of which the **SV (servo) category**, which **doubled** (30,480 → 63,085) | 29,603 | 52.3% |
+| — of which products that grew more than 3× | 26,729 | 47.2% |
+| Products new to the catalogue | 7,164 | 12.6% |
+| Dormant products that came back | 3,680 | 6.5% |
+
+Every category except two grew; the forecast had every category shrinking. The top
+20 products carry 55% of the gap. Separately, 1,736 products were over-forecast by
+26,294 units in total, the largest being AGV (10,000 forecast, 6,000 sold).
+
+### The stock plan, tested against real demand
+
+Holding the published policy for each service target while FY2025's real demand arrived:
+
+| Target | Policy | Predicted (on FY2024) | **Achieved on FY2025** | Avg stock held |
+|---|---|---|---|---|
+| 70% | 1.50× forecast | 71.7% | **63.5%** | 12,600 |
+| 85% | 2.00× + 0.75× P90 buffer | 85.2% | **75.4%** | 34,000 |
+| 90% | 0.75× + 1.75× P90 buffer | 90.2% | **82.4%** | 79,700 |
+| 92% | 0.75× + 3.00× P90 buffer | 92.2% | **86.0%** | 145,600 |
+
+Each policy delivered about 8 points less service than predicted, because demand
+ran 32% above the plan. A naive forecast under the same 90% policy achieved the
+same 82.4%: above about 90%, the buffer sets the stock and the forecast no longer
+matters, exactly as documented before the actuals arrived.
+
+### What this teaches
+
+1. **The turning-point lag struck a third time.** +45.6% too high into the FY2023
+   crash, −20.6% too low out of it in FY2024, −24.5% too low in FY2025. The models
+   carry the recent level forward; this market does not move that way.
+2. **Every independent signal pointed up, and we left the number where it was.**
+   The judgmental cross-check, the FY2024 fold bias, the external indicator and the
+   market scenario all sat above the forecast. We published the scenario beside the
+   forecast rather than moving it. In hindsight the scenario would have cut the error
+   from −24.5% to −8.7%. When every independent route points the same way, the point
+   forecast should move, not only the footnote.
+3. **The external indicator was the best predictor we had.** Mitsubishi Electric's
+   FA order growth ran +15% to +30% through the year; the actual came in at +20.6%.
+   A market signal that cannot be fitted on four years of history can still set the
+   level.
+4. **The range was built from two years the model had already missed**, in opposite
+   directions. It was wide, and it was still not wide enough for a second consecutive
+   rebound of this size.
+5. **It is information, not algorithms.** Half the gap is one category doubling.
+   That is a capital-expenditure wave that sales would have seen in quotations months
+   before it landed, which is what the sales-input channel was for.
+
+Revenue is not scored: the release carries no invoice amounts, and 1,213 lines have
+a zero Base Price (quoted per order), so no like-for-like revenue actual exists.
 
 ---
 
@@ -347,6 +439,7 @@ sales review of the top ~50 products, and the FY2025 actuals.
 | `data_quality_report.csv` | Every data issue found and what was done. |
 | `prediction_interval_multipliers.csv` | The measured multipliers behind every range. |
 | `run_metadata.json` | Full record of the run, including every setting. |
+| `fy2025_validation/` | The frozen forecast scored against the released FY2025 actuals (`validate_fy2025.py`). |
 
 The recommended stock plan is downloaded from the Inventory Planning page, since it
 depends on the service level chosen there.

@@ -655,6 +655,45 @@ Buffers in the back-test come from the training window only.
 
 ---
 
+## 23. The FY2025 outcome — forecast 24.5% low, actual above the range
+
+**Released 2026-09-30; scored by `validate_fy2025.py` (T. Khongsattra) and
+reproduced independently 2026-10-02 on a byte-identical file (SHA-256
+`df6e4e99…`).** Nothing was retrained. Full tables in `outputs/fy2025_validation/`
+and the README section "FY2025 actuals: what really happened".
+
+| | Units |
+|---|---|
+| Actual FY2025 | 231,080 (+20.6% vs FY2024) |
+| Frozen forecast (commit `523dc63`) | 174,428 (−24.5%) |
+| Published range | 118,093 – 215,741 — **missed, on the high side** |
+| Market scenario (EXTERNAL_EVENTS §7a) | 211,000 (−8.7%) — closest number published |
+
+**Decomposition of the 56,651-unit gap:** 80.9% from products that sold in FY2024
+and were forecast — the SV category alone is 52.3% of the gap (it doubled); 12.6% from
+644 products new to the catalogue; 6.5% from dormant products that came back.
+
+**Against naive plans:** better at product-month (WAPE 75.7% vs 79.3% flat / 94.1%
+repeat) and product-year (47.3% vs 49.7%); worse at company-month (24.7% vs 21.5%)
+because the flat plan's total happened to sit closer. The allocation held; the level did not.
+
+**Stock plan under real demand:** every published policy delivered ~8 points less
+service than predicted (90% policy → 82.4%, 79,700 units held). A naive forecast
+under the same 90% policy achieved the identical 82.4% — consistent with §22's
+statement that above ~90% the buffer, not the forecast, sets the stock.
+
+**What is recorded as learned (not revised after the fact):**
+1. Third consecutive turning-point miss: +45.6% (FY2023), −20.6% (FY2024), −24.5%
+   (FY2025). The level-carrying design lags this market every year it turns.
+2. Section 0's decision to keep the headline at 174,514 and publish 211,000 as a
+   scenario was the wrong call in hindsight. Four independent routes pointed up. When
+   routes that share no inputs agree on direction, the point forecast should move.
+3. The external indicator (MELCO FA order growth, +15–30% through the year) tracked
+   the outturn (+20.6%) better than anything fitted to the sales history.
+4. Revenue cannot be scored: no invoice amounts in the release; 1,213 zero-price lines.
+
+---
+
 ## 15. What could still go wrong
 
 1. **A market turning point in FY2025.** Nothing in the *supplied data* explains why
